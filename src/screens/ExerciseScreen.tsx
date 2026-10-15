@@ -2,20 +2,25 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import Calendar from '../components/Calendar'
 import EditExercise from '../components/EditExercise'
+import PersonalBests from '../components/PersonalBests'
 import { formatDay, todayISO } from '../dates'
 import type { Exercise } from '../exercises'
 import {
   MAX_SETS,
+  bestByVolume,
+  bestByWeight,
+  describeSet,
   fetchAllSets,
+  formatVolume,
   formatWeight,
   parseReps,
   parseWeight,
+  volume,
   type WorkoutSet,
 } from '../sets'
 import { supabase } from '../supabase'
 
 const WEIGHT_STEP = 2.5
-const PREVIOUS_SESSIONS = 3 // how many earlier sessions to show above the set rows
 
 // What is typed into one row (kept as text so "62," doesn't jump around while typing)
 type RowInput = { weight: string; reps: string }
@@ -92,13 +97,11 @@ export default function ExerciseScreen() {
   const loggedDates = useMemo(() => new Set((sets ?? []).map((s) => s.date)), [sets])
   const hasSavedSets = loggedDates.has(date)
 
-  // Previous sessions: the sets of the 3 most recent dates before the selected one, newest first
-  const previousSessions = useMemo(() => {
-    const earlier = [...loggedDates].filter((d) => d < date).sort().reverse()
-    return earlier.slice(0, PREVIOUS_SESSIONS).map((d) => ({
-      date: d,
-      sets: (sets ?? []).filter((s) => s.date === d),
-    }))
+  // "Last time": the sets of the most recent date before the selected one
+  const lastSession = useMemo(() => {
+    const lastDate = [...loggedDates].filter((d) => d < date).sort().at(-1)
+    if (!lastDate || !sets) return null
+    return { date: lastDate, sets: sets.filter((s) => s.date === lastDate) }
   }, [loggedDates, sets, date])
 
   function selectDate(newDate: string) {
@@ -150,6 +153,20 @@ export default function ExerciseScreen() {
       return
     }
 
+    // Did this day beat the personal bests of all other days?
+    const otherDays = (sets ?? []).filter((s) => s.date !== date)
+    const newRecords: string[] = []
+    const oldHeaviest = bestByWeight(otherDays)
+    const heaviestToday = bestByWeight(toSave)
+    if (oldHeaviest && heaviestToday && heaviestToday.weight_kg > oldHeaviest.weight_kg) {
+      newRecords.push(`heaviest ${describeSet(heaviestToday)}`)
+    }
+    const oldMostVolume = bestByVolume(otherDays)
+    const mostVolumeToday = bestByVolume(toSave)
+    if (oldMostVolume && mostVolumeToday && volume(mostVolumeToday) > volume(oldMostVolume)) {
+      newRecords.push(`best volume ${formatVolume(volume(mostVolumeToday))}`)
+    }
+
     setBusy(true)
     setMessage(null)
 
@@ -174,7 +191,13 @@ export default function ExerciseScreen() {
       setMessage({ kind: 'error', text: `Could not save: ${error.message}` })
     } else {
       await reloadSets(date)
-      setMessage({ kind: 'ok', text: 'Saved ✓' })
+      setMessage({
+        kind: 'ok',
+        text:
+          newRecords.length > 0
+            ? `Saved ✓ New personal best: ${newRecords.join(' and ')} 🎉`
+            : 'Saved ✓',
+      })
     }
     setBusy(false)
   }
@@ -249,21 +272,17 @@ export default function ExerciseScreen() {
         />
       )}
 
+      <PersonalBests sets={sets} />
+
       <Calendar selected={date} onSelect={selectDate} markedDates={loggedDates} />
 
       <h2 className="day-title">{formatDay(date)}</h2>
 
-      {previousSessions.length > 0 && (
-        <ul className="last-time">
-          {previousSessions.map((session) => (
-            <li key={session.date}>
-              <span className="muted">{formatDay(session.date)}:</span>{' '}
-              {session.sets
-                .map((s) => `${formatWeight(s.weight_kg)} × ${s.reps}`)
-                .join(' · ')}
-            </li>
-          ))}
-        </ul>
+      {lastSession && (
+        <p className="last-time">
+          <span className="muted">Last time ({formatDay(lastSession.date)}):</span>{' '}
+          {lastSession.sets.map((s) => `${formatWeight(s.weight_kg)} × ${s.reps}`).join(' · ')}
+        </p>
       )}
 
       <form onSubmit={save}>

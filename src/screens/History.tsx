@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import WeightChart, { type ChartPoint } from '../components/WeightChart'
 import { formatDay } from '../dates'
-import { fetchAllSets, formatWeight, type WorkoutSet } from '../sets'
+import PersonalBests from '../components/PersonalBests'
+import {
+  bestByVolume,
+  bestByWeight,
+  fetchAllSets,
+  formatWeight,
+  type WorkoutSet,
+} from '../sets'
 import { supabase } from '../supabase'
 
 export default function History() {
@@ -49,6 +56,10 @@ export default function History() {
     [days],
   )
 
+  // Dates of the two personal bests, for the badges in the list
+  const heaviestDate = useMemo(() => bestByWeight(sets ?? [])?.date, [sets])
+  const mostVolumeDate = useMemo(() => bestByVolume(sets ?? [])?.date, [sets])
+
   return (
     <main className="page">
       <Link className="back-link" to={`/exercise/${id}`}>
@@ -63,6 +74,11 @@ export default function History() {
       {days.length > 0 && (
         <>
           <section className="section">
+            <h2>Personal bests</h2>
+            <PersonalBests sets={sets ?? []} />
+          </section>
+
+          <section className="section">
             <h2>Top set weight (kg)</h2>
             <WeightChart points={chartPoints} />
           </section>
@@ -73,7 +89,13 @@ export default function History() {
               {[...days].reverse().map((day) => (
                 <li key={day.date}>
                   <Link className="history-item" to={`/exercise/${id}?date=${day.date}`}>
-                    <span className="history-date">{formatDay(day.date)}</span>
+                    <span className="history-date">
+                      {formatDay(day.date)}
+                      {heaviestDate === day.date && <span className="pb-badge">Heaviest</span>}
+                      {mostVolumeDate === day.date && (
+                        <span className="pb-badge">Best volume</span>
+                      )}
+                    </span>
                     <span>
                       {day.sets
                         .map((s) => `${formatWeight(s.weight_kg)} × ${s.reps}`)

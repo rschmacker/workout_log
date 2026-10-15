@@ -48,3 +48,41 @@ export function parseReps(text: string): number | null {
 export function formatWeight(n: number): string {
   return String(Math.round(n * 100) / 100)
 }
+
+// Volume of one set = weight × reps
+export function volume(s: { weight_kg: number; reps: number }): number {
+  return s.weight_kg * s.reps
+}
+
+// 1250 -> "1,250 kg"
+export function formatVolume(n: number): string {
+  return `${n.toLocaleString('en-GB', { maximumFractionDigits: 2 })} kg`
+}
+
+// The best set by some score. On a tie, more reps wins; after that the earliest
+// date (when it was first reached). Expects the sets sorted by date, oldest first
+// (as fetchAllSets returns them).
+function bestBy<T extends WorkoutSet>(sets: T[], score: (s: T) => number): T | null {
+  let best: T | null = null
+  for (const s of sets) {
+    if (!best || score(s) > score(best) || (score(s) === score(best) && s.reps > best.reps)) {
+      best = s
+    }
+  }
+  return best
+}
+
+// Personal best by weight: the heaviest set
+export function bestByWeight<T extends WorkoutSet>(sets: T[]): T | null {
+  return bestBy(sets, (s) => s.weight_kg)
+}
+
+// Personal best by volume: the set with the highest weight × reps
+export function bestByVolume<T extends WorkoutSet>(sets: T[]): T | null {
+  return bestBy(sets, volume)
+}
+
+// "100 kg × 8"
+export function describeSet(s: WorkoutSet): string {
+  return `${formatWeight(s.weight_kg)} kg × ${s.reps}`
+}

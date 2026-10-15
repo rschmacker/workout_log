@@ -8,8 +8,8 @@ export type ChartPoint = {
   reps: number // reps of that top set
 }
 
-const HEIGHT = 220
-const MARGIN = { top: 24, right: 20, bottom: 28, left: 44 }
+const HEIGHT = 236
+const MARGIN = { top: 24, right: 20, bottom: 44, left: 44 } // bottom: room for 2-line dates
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // Round tick steps: 1, 2, 2.5, 5, 10, 20, 25, 50 … so the y-axis shows clean numbers
@@ -22,13 +22,14 @@ function niceStep(range: number, targetTicks: number): number {
   return 10 * power
 }
 
-function shortDate(date: string, longRange: boolean): string {
-  return parseISODate(date).toLocaleDateString(
+// Axis label in two lines: "13 Oct" above "2026" (just "Oct" above "2026" for long ranges)
+function axisDate(date: string, longRange: boolean): [string, string] {
+  const d = parseISODate(date)
+  const top = d.toLocaleDateString(
     'en-GB',
-    longRange
-      ? { month: 'short', year: 'numeric' } // "Oct 2026"
-      : { day: 'numeric', month: 'short', year: 'numeric' }, // "13 Oct 2026"
+    longRange ? { month: 'short' } : { day: 'numeric', month: 'short' },
   )
+  return [top, String(d.getFullYear())]
 }
 
 // Line chart of the top set weight per day. Hand-made SVG, so no chart library is needed.
@@ -73,7 +74,7 @@ export default function WeightChart({ points }: { points: ChartPoint[] }) {
   // Show first, middle and last date under the axis.
   // The middle label is skipped if it would overlap the first or last one.
   const longRange = spanDays > 300
-  const LABEL_SPACE = 100 // px, roughly the width of "13 Oct 2026" plus a gap
+  const LABEL_SPACE = 70 // px, roughly the width of "13 Oct" plus a gap
   const middle = Math.floor((points.length - 1) / 2)
   const middleFits =
     xOf(middle) - xOf(0) >= LABEL_SPACE && xOf(points.length - 1) - xOf(middle) >= LABEL_SPACE
@@ -142,19 +143,24 @@ export default function WeightChart({ points }: { points: ChartPoint[] }) {
           ))}
 
           {/* Dates along the bottom */}
-          {xLabelIndexes.map((i) => (
-            <text
-              key={i}
-              className="chart-axis"
-              x={xOf(i)}
-              y={HEIGHT - 8}
-              textAnchor={
-                points.length === 1 ? 'middle' : i === 0 ? 'start' : i === last ? 'end' : 'middle'
-              }
-            >
-              {shortDate(points[i].date, longRange)}
-            </text>
-          ))}
+          {xLabelIndexes.map((i) => {
+            const [top, year] = axisDate(points[i].date, longRange)
+            return (
+              <text
+                key={i}
+                className="chart-axis"
+                y={HEIGHT - 24}
+                textAnchor={
+                  points.length === 1 ? 'middle' : i === 0 ? 'start' : i === last ? 'end' : 'middle'
+                }
+              >
+                <tspan x={xOf(i)}>{top}</tspan>
+                <tspan x={xOf(i)} dy="1.3em">
+                  {year}
+                </tspan>
+              </text>
+            )
+          })}
 
           {/* Crosshair at the highlighted day */}
           {activePoint && (

@@ -1,0 +1,61 @@
+# Builds the app and publishes it to GitHub Pages
+# (https://rschmacker.github.io/workout_log/) on every push to main.
+# It can also be started by hand: GitHub -> Actions -> Deploy to GitHub Pages -> Run workflow.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Allowed to publish to GitHub Pages, nothing else
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# If two pushes happen quickly, finish the running deployment and skip the queued older one
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Supabase secrets are missing. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          npm run build
+        env:
+          # Set these under Settings -> Secrets and variables -> Actions
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

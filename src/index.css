@@ -1,0 +1,135 @@
+:root {
+  /* Colors */
+  --bg: #111827;
+  --surface: #1f2937;
+  --text: #f9fafb;
+  --muted: #9ca3af;
+  --accent: #f97316;
+  --accent-text: #111827;
+
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  /* Keep content clear of the notch and home bar when running full-screen on iPhone */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Remove the grey flash when tapping on iOS */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.page {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Large touch target (at least 44px tall, as Apple recommends) */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 1.25rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+}
+
+.button.secondary {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.link-button {
+  min-height: 44px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  text-decoration: underline;
+}
+
+/* Vertical layout with even spacing; buttons stretch to full width */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.stack form.stack {
+  margin-top: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* 16px font size stops iPhone Safari from zooming in when you tap the field */
+input {
+  min-height: 48px;
+  padding: 0 0.875rem;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+}
+
+input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.divider {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.error {
+  margin: 0;
+  color: #fca5a5;
+}

@@ -1,40 +1,9 @@
-import { useEffect, useState } from 'react'
 import { Link, Route, Routes } from 'react-router'
 import Login from './Login'
-import { supabase } from './supabase'
+import AddExercise from './screens/AddExercise'
+import ExerciseScreen from './screens/ExerciseScreen'
+import Home from './screens/Home'
 import { useSession } from './useSession'
-
-// Placeholder Home for step 2: shows who is logged in and checks the database.
-// The real Home, Exercise and History screens replace this in later steps.
-function Home({ email }: { email: string | undefined }) {
-  const [dbStatus, setDbStatus] = useState('Checking database…')
-
-  useEffect(() => {
-    supabase
-      .from('exercises')
-      .select('id', { count: 'exact', head: true })
-      .then(({ count, error }) => {
-        setDbStatus(
-          error
-            ? `Database error: ${error.message}`
-            : `Database OK: ${count} exercises visible.`,
-        )
-      })
-  }, [])
-
-  return (
-    <main className="page">
-      <h1>Workout Log</h1>
-      <p>
-        Signed in as <strong>{email}</strong>
-      </p>
-      <p className="muted">{dbStatus}</p>
-      <button className="button secondary" onClick={() => supabase.auth.signOut()}>
-        Sign out
-      </button>
-    </main>
-  )
-}
 
 function NotFound() {
   return (
@@ -62,7 +31,9 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Home email={session.user.email} />} />
+      <Route path="/" element={<Home />} />
+      <Route path="/add-exercise" element={<AddExercise />} />
+      <Route path="/exercise/:id" element={<ExerciseScreen />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )

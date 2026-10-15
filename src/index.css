@@ -133,3 +133,104 @@ input:focus {
   margin: 0;
   color: #fca5a5;
 }
+
+/* Title on the left, small action on the right */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.topbar h1 {
+  margin: 0;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-bottom: 0.5rem;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.section {
+  margin-top: 1.5rem;
+}
+
+.section h2 {
+  margin: 0 0 0.625rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Two cards per row on phones, more on wider screens */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.625rem;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  min-height: 72px;
+  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.card:active {
+  background: #374151;
+}
+
+.card-add {
+  justify-content: center;
+  margin-top: 1.5rem;
+  border: 2px dashed #374151;
+  background: none;
+  color: var(--muted);
+}
+
+fieldset.field {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+fieldset.field legend {
+  margin-bottom: 0.375rem;
+  padding: 0;
+}
+
+/* Category picker: large buttons, the selected one is highlighted */
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.choice {
+  min-height: 48px;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.choice[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}

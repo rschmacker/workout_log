@@ -2,6 +2,7 @@ import { Link, Route, Routes } from 'react-router'
 import Login from './Login'
 import AddExercise from './screens/AddExercise'
 import ExerciseScreen from './screens/ExerciseScreen'
+import History from './screens/History'
 import Home from './screens/Home'
 import { useSession } from './useSession'
 
@@ -34,6 +35,7 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/add-exercise" element={<AddExercise />} />
       <Route path="/exercise/:id" element={<ExerciseScreen />} />
+      <Route path="/exercise/:id/history" element={<History />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )

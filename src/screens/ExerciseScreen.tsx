@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import Calendar from '../components/Calendar'
 import EditExercise from '../components/EditExercise'
 import { formatDay, todayISO } from '../dates'
@@ -38,10 +38,17 @@ function rowsForDate(sets: WorkoutSet[], date: string): RowInput[] {
 export default function ExerciseScreen() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  // Start on the date from the URL (e.g. coming from History), otherwise today
+  const [initialDate] = useState(() => {
+    const fromUrl = searchParams.get('date')
+    return fromUrl && /^\d{4}-\d{2}-\d{2}$/.test(fromUrl) ? fromUrl : todayISO()
+  })
 
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [sets, setSets] = useState<WorkoutSet[] | null>(null) // all sets of this exercise
-  const [date, setDate] = useState(todayISO())
+  const [date, setDate] = useState(initialDate)
   const [rows, setRows] = useState<RowInput[]>(emptyRows)
   const [dirty, setDirty] = useState(false) // unsaved changes in the rows?
   const [editing, setEditing] = useState(false)
@@ -65,10 +72,10 @@ export default function ExerciseScreen() {
     fetchAllSets(id)
       .then((all) => {
         setSets(all)
-        setRows(rowsForDate(all, todayISO()))
+        setRows(rowsForDate(all, initialDate))
       })
       .catch((e: Error) => setLoadError(e.message))
-  }, [id])
+  }, [id, initialDate])
 
   // Reload all sets after saving or deleting, and refill the rows of that date
   async function reloadSets(forDate: string) {
@@ -219,11 +226,16 @@ export default function ExerciseScreen() {
 
       <header className="topbar">
         <h1>{exercise.name}</h1>
-        {isCustom && (
-          <button className="link-button" onClick={() => setEditing(!editing)}>
-            {editing ? 'Close' : 'Edit'}
-          </button>
-        )}
+        <div className="topbar-actions">
+          {isCustom && (
+            <button className="link-button" onClick={() => setEditing(!editing)}>
+              {editing ? 'Close' : 'Edit'}
+            </button>
+          )}
+          <Link className="pill-link" to={`/exercise/${id}/history`}>
+            History
+          </Link>
+        </div>
       </header>
 
       {editing && (

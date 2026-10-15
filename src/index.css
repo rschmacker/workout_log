@@ -234,3 +234,180 @@ fieldset.field legend {
   color: var(--accent-text);
   font-weight: 600;
 }
+
+.button.danger {
+  background: none;
+  border: 1px solid #f87171;
+  color: #fca5a5;
+}
+
+.danger-text {
+  color: #fca5a5;
+}
+
+.success {
+  margin: 0;
+  color: #86efac;
+}
+
+.panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.panel input {
+  background: var(--bg);
+}
+
+/* ---------- Calendar ---------- */
+
+.calendar {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.calendar-nav {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--accent);
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  text-align: center;
+}
+
+.calendar-weekday {
+  padding: 0.25rem 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.calendar-day {
+  position: relative;
+  min-height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+}
+
+.calendar-day.today {
+  box-shadow: inset 0 0 0 1px var(--muted);
+}
+
+.calendar-day.selected {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+/* Dot under days that have logged sets */
+.calendar-day.marked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.calendar-day.selected.marked::after {
+  background: var(--accent-text);
+}
+
+/* ---------- Set entry ---------- */
+
+.day-title {
+  margin: 1.25rem 0 0.25rem;
+  font-size: 1.125rem;
+}
+
+/* Previous sessions list above the set rows */
+.last-time {
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9375rem;
+}
+
+.last-time li + li {
+  margin-top: 0.25rem;
+}
+
+/* Columns: set number | − weight + | reps */
+.set-table {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr 4.5rem;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.set-row {
+  display: contents;
+}
+
+.set-head {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.set-head-weight {
+  text-align: center;
+}
+
+.set-number {
+  color: var(--muted);
+  font-weight: 600;
+  text-align: center;
+}
+
+.set-table input {
+  width: 100%;
+  min-width: 0;
+  padding: 0 0.5rem;
+  text-align: center;
+}
+
+.weight-input {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  gap: 0.25rem;
+}
+
+.step-button {
+  min-height: 48px;
+  border: none;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 1.375rem;
+  line-height: 1;
+}
+
+.step-button:active {
+  background: #374151;
+}

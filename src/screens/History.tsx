@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
+import BackLink from '../components/BackLink'
 import WeightChart, { type ChartPoint } from '../components/WeightChart'
 import { formatDay } from '../dates'
 import PersonalBests from '../components/PersonalBests'
@@ -67,9 +68,7 @@ export default function History() {
 
   return (
     <main className="page">
-      <Link className="back-link" to={`/exercise/${id}`}>
-        ‹ Back
-      </Link>
+      <BackLink parent={`/exercise/${id}`} />
       <h1>{name ?? 'History'}</h1>
 
       {error && <p className="error">Could not load history: {error}</p>}

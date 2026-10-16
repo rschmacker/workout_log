@@ -1,10 +1,12 @@
 import { Link, Route, Routes } from 'react-router'
 import Login from './Login'
 import AddExercise from './screens/AddExercise'
+import ExerciseList from './screens/ExerciseList'
 import ExerciseScreen from './screens/ExerciseScreen'
 import History from './screens/History'
 import Home from './screens/Home'
 import Settings from './screens/Settings'
+import WorkoutList from './screens/WorkoutList'
 import { useSession } from './useSession'
 
 function NotFound() {
@@ -34,6 +36,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/exercises/:category" element={<ExerciseList />} />
+      <Route path="/workouts/:type" element={<WorkoutList />} />
       <Route path="/add-exercise" element={<AddExercise />} />
       <Route path="/exercise/:id" element={<ExerciseScreen />} />
       <Route path="/exercise/:id/history" element={<History />} />

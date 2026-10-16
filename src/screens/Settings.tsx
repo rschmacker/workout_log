@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import BackLink from '../components/BackLink'
 import { buildExportRows, toGermanCsv, type ExportRow } from '../csv'
 import { todayISO } from '../dates'
 import { fetchEntries } from '../entries'
@@ -63,9 +63,7 @@ export default function Settings({ email }: { email: string | undefined }) {
 
   return (
     <main className="page">
-      <Link className="back-link" to="/">
-        ‹ Back
-      </Link>
+      <BackLink parent="/" />
       <h1>Settings</h1>
 
       <section className="section">

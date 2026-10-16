@@ -47,31 +47,31 @@ Work through these one at a time, in this order. After each item: stop, tell me 
 - [ ] Rule for "sufficiently different": different movement = new exercise; same movement with different grip/tempo/stance = base exercise + Besonderheit
 
 ## 5. Body illustrations and visual polish (phone first)
-- [ ] Show a body figure on each body-part button in the "Exercises" section of the Home screen (see item 6): Chest, Back/Hinge, Legs, Shoulders, Arms, Core, with the muscles of that broad category highlighted. Categories only, not individual exercises
-- [ ] Use the open-source npm package `react-body-highlighter` (detailed anatomical SVG, front and back views, named muscles; the app is non-commercial). First check its license on GitHub and tell me what it says. Wrap it in one small reusable component (`BodyMap`) that takes a category and highlights the right muscles
-- [ ] Muscle mapping (check the exact names the package supports, and tell me if one is missing):
+- [x] Show a body figure on each body-part button in the "Exercises" section of the Home screen (see item 6): Chest, Back/Hinge, Legs, Shoulders, Arms, Core, with the muscles of that broad category highlighted. Categories only, not individual exercises
+- [x] Use the open-source npm package `react-body-highlighter` (detailed anatomical SVG, front and back views, named muscles; the app is non-commercial). First check its license on GitHub and tell me what it says. Wrap it in one small reusable component (`BodyMap`) that takes a category and highlights the right muscles — MIT license
+- [x] Muscle mapping (check the exact names the package supports, and tell me if one is missing) — all exist except "adductors": the package calls the front inner thigh "abductors", used for Legs:
   - Chest: chest (front view)
   - Back/Hinge: upper-back, trapezius, lower-back, gluteal, hamstring (back view)
   - Legs: quadriceps, calves, adductors (front view)
   - Shoulders: front-deltoids, back-deltoids
   - Arms: biceps, triceps, forearm
   - Core: abs, obliques (front view)
-- [ ] Use the app's accent color for highlighted muscles and a muted gray for the rest, in light and dark mode. Show front and back view side by side where a category needs both (shoulders, arms)
-- [ ] Size about 80 to 100 px tall, crisp on retina screens, with an accessible label (e.g. "Chest muscles highlighted"). Make sure it does not slow down the Home screen
+- [ ] Use the app's accent color for highlighted muscles and a muted gray for the rest, in light and dark mode. ~~Show front and back view side by side where a category needs both (shoulders, arms)~~ — decided: front view only for shoulders and arms; colors done for dark mode, light mode still to do
+- [x] Size about 80 to 100 px tall, crisp on retina screens, with an accessible label (e.g. "Chest muscles highlighted"). Make sure it does not slow down the Home screen
 - [ ] Overall look on iPhone: rounded cards with soft shadows, generous spacing, large readable type, tap targets of at least 44 px, light and dark mode, subtle press animations, safe-area padding at the top and bottom, no horizontal scrolling
 - [ ] Applies to the saved workouts section too, so the whole Home screen feels consistent
 - [ ] After building it, tell me how to check it on my phone, and I will send screenshots for adjustments
 
 ## 6. Restructured Home screen (Exercises and Workouts)
 Suggested order: do this right after item 3 and before items 4 and 5, since both build on it.
-- [ ] The Home screen has two clearly separated sections with headings: "Exercises" and "Workouts"
-- [ ] **Exercises section:** a grid (2 columns on phone) of large buttons, one per body part: Chest, Back/Hinge, Legs, Shoulders, Arms, Core. Each button shows the body image with the highlighted muscles (item 5) and the name. Until item 5 is built, use a plain placeholder icon
-- [ ] Tapping a body part opens a list of the exercises for that body part (e.g. Chest: DB Bench Press, BB Bench Press, Incline DB Press). Tapping an exercise opens the existing date + set entry screen. Include "Add custom exercise" at the bottom of this list
-- [ ] **Workouts section:** three large buttons: Upper body, Lower body, Full body
-- [ ] Tapping one lists the saved workouts of that type, named by their main exercises. Tapping a workout opens the workout screen (item 4)
-- [ ] Navigation: each screen has a clear back button that goes exactly one level up (entry screen to exercise list to Home, or workout screen to workout list to Home); never jump straight to the Home screen unexpectedly
-- [ ] Keep it fast: Home should show everything without scrolling much on an iPhone, with both sections visible or at most one short scroll
-- [ ] Show the last logged date on each exercise in the lists (small gray text), so I see what I trained recently
+- [x] The Home screen has two clearly separated sections with headings: "Exercises" and "Workouts"
+- [x] **Exercises section:** a grid (2 columns on phone) of large buttons, one per body part: Chest, Back/Hinge, Legs, Shoulders, Arms, Core. Each button shows the body image with the highlighted muscles (item 5) and the name. Until item 5 is built, use a plain placeholder icon
+- [x] Tapping a body part opens a list of the exercises for that body part (e.g. Chest: DB Bench Press, BB Bench Press, Incline DB Press). Tapping an exercise opens the existing date + set entry screen. Include "Add custom exercise" at the bottom of this list
+- [x] **Workouts section:** three large buttons: Upper body, Lower body, Full body
+- [ ] Tapping one lists the saved workouts of that type, named by their main exercises. Tapping a workout opens the workout screen (item 4) — list screen exists, shows "No saved workouts yet" until item 4
+- [x] Navigation: each screen has a clear back button that goes exactly one level up (entry screen to exercise list to Home, or workout screen to workout list to Home); never jump straight to the Home screen unexpectedly — Back returns to the previous screen; if a screen was opened directly, it goes to its parent
+- [x] Keep it fast: Home should show everything without scrolling much on an iPhone, with both sections visible or at most one short scroll
+- [x] Show the last logged date on each exercise in the lists (small gray text), so I see what I trained recently
 
 ## Decisions
 - Variations (e.g. wide grip) are only saved as Besonderheit in the history, no extra chips or cards on the Home screen

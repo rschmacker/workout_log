@@ -1,12 +1,26 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
-import { CATEGORIES, type Category } from '../exercises'
+import { useNavigate, useSearchParams } from 'react-router'
+import BackLink from '../components/BackLink'
+import { useGoBack } from '../useGoBack'
+import {
+  CATEGORIES,
+  categoryFromSlug,
+  categoryLabel,
+  categorySlug,
+  type Category,
+} from '../exercises'
 import { supabase } from '../supabase'
 
 export default function AddExercise() {
   const navigate = useNavigate()
+  const goBack = useGoBack()
+  const [searchParams] = useSearchParams()
+  // Opened from a body part's list: that body part is preselected
+  const [startCategory] = useState(() => categoryFromSlug(searchParams.get('category') ?? ''))
+  const parent = startCategory ? `/exercises/${categorySlug(startCategory)}` : '/'
+
   const [name, setName] = useState('')
-  const [category, setCategory] = useState<Category | null>(null)
+  const [category, setCategory] = useState<Category | null>(startCategory)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -32,14 +46,14 @@ export default function AddExercise() {
       setBusy(false)
       return
     }
-    navigate('/')
+    // Back to the list it was added from; if you picked another body part, show that list
+    if (category === startCategory) goBack(parent)
+    else navigate(`/exercises/${categorySlug(category)}`, { replace: true })
   }
 
   return (
     <main className="page">
-      <Link className="back-link" to="/">
-        ‹ Back
-      </Link>
+      <BackLink parent={parent} />
       <h1>Add exercise</h1>
 
       <form className="stack" onSubmit={save}>
@@ -66,7 +80,7 @@ export default function AddExercise() {
                 aria-pressed={category === c}
                 onClick={() => setCategory(c)}
               >
-                {c}
+                {categoryLabel(c)}
               </button>
             ))}
           </div>

@@ -8,6 +8,8 @@
   --accent-text: #111827;
   --line: #374151; /* borders and chart gridlines */
   --chart-series: #ea580c; /* slightly deeper orange, checked for contrast on --surface */
+  --body-base: #4b5563; /* body figures: muscles that aren't highlighted */
+  --body-highlight: var(--accent); /* body figures: highlighted muscles */
 
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -171,11 +173,89 @@ input:focus {
   text-transform: uppercase;
 }
 
-/* Two cards per row on phones, more on wider screens */
-.card-grid {
+/* ---------- Home: body part and workout tiles ---------- */
+
+.tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.625rem;
+}
+
+.tile-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.625rem;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 104px;
+  padding: 0.75rem 0.5rem;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+}
+
+.tile:active {
+  background: #374151;
+}
+
+.tile-small {
+  min-height: 72px;
+}
+
+/* Body figure on a body part tile, 96px tall */
+.body-map {
+  display: flex;
+  justify-content: center;
+  height: 96px;
+}
+
+.body-map .rbh-wrapper {
+  width: 48px; /* the figures are twice as tall as wide */
+  height: 100%;
+}
+
+/* The package marks every muscle as clickable; on a tile the whole tile is the button */
+.body-map polygon {
+  cursor: inherit !important;
+}
+
+/* ---------- Exercise list of one body part ---------- */
+
+.exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.exercise-item {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.125rem;
+  min-height: 64px;
+}
+
+/* "Last: Mon, 13 Oct 2026" under the name; keeps its height while loading */
+.exercise-last {
+  min-height: 1.25em;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.exercise-list .card-add {
+  margin-top: 0.5rem;
 }
 
 .card {

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
+import BackLink from '../components/BackLink'
+import { useGoBack } from '../useGoBack'
 import Calendar from '../components/Calendar'
 import EditExercise from '../components/EditExercise'
 import NoteField from '../components/NoteField'
 import PersonalBests from '../components/PersonalBests'
 import { formatDay, todayISO } from '../dates'
 import { fetchEntries, noteFor, saveNote, type ExerciseEntry } from '../entries'
-import type { Exercise } from '../exercises'
+import { categorySlug, type Exercise } from '../exercises'
 import {
   MAX_SETS,
   bestByVolume,
@@ -49,7 +51,7 @@ function rowsForDate(sets: WorkoutSet[], date: string): RowInput[] {
 
 export default function ExerciseScreen() {
   const { id = '' } = useParams()
-  const navigate = useNavigate()
+  const goBack = useGoBack()
   const [searchParams] = useSearchParams()
 
   // Start on the date from the URL (e.g. coming from History), otherwise today
@@ -273,9 +275,7 @@ export default function ExerciseScreen() {
   if (loadError) {
     return (
       <main className="page">
-        <Link className="back-link" to="/">
-          ‹ Back
-        </Link>
+        <BackLink parent="/" />
         <p className="error">Could not load exercise: {loadError}</p>
       </main>
     )
@@ -290,12 +290,12 @@ export default function ExerciseScreen() {
   }
 
   const isCustom = exercise.user_id !== null
+  // Where Back goes if this screen was opened directly: the body part's list
+  const parent = `/exercises/${categorySlug(exercise.category)}`
 
   return (
     <main className="page">
-      <Link className="back-link" to="/">
-        ‹ Back
-      </Link>
+      <BackLink parent={parent} />
 
       <header className="topbar">
         <h1>{exercise.name}</h1>
@@ -318,7 +318,7 @@ export default function ExerciseScreen() {
             setExercise({ ...exercise, name })
             setEditing(false)
           }}
-          onDeleted={() => navigate('/')}
+          onDeleted={() => goBack(parent)}
         />
       )}
 

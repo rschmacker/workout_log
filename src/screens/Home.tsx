@@ -1,59 +1,40 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { CATEGORIES, type Exercise } from '../exercises'
-import { supabase } from '../supabase'
+import BodyMap from '../components/BodyMap'
+import { CATEGORIES, categoryLabel, categorySlug } from '../exercises'
+import { WORKOUT_TYPES } from '../workouts'
 
 export default function Home() {
-  const [exercises, setExercises] = useState<Exercise[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    // Row Level Security only returns the built-in exercises plus your own
-    supabase
-      .from('exercises')
-      .select('id, user_id, name, category')
-      .order('name')
-      .then(({ data, error }) => {
-        if (error) setError(error.message)
-        else setExercises(data as Exercise[])
-      })
-  }, [])
-
   return (
     <main className="page">
       <header className="topbar">
-        <h1>Workouts</h1>
+        <h1>Workout Log</h1>
         <Link className="pill-link" to="/settings">
           Settings
         </Link>
       </header>
 
-      {error && <p className="error">Could not load exercises: {error}</p>}
-      {!exercises && !error && <p className="muted">Loading…</p>}
+      <section className="section">
+        <h2>Exercises</h2>
+        <div className="tile-grid">
+          {CATEGORIES.map((category) => (
+            <Link key={category} className="tile" to={`/exercises/${categorySlug(category)}`}>
+              <BodyMap category={category} />
+              {categoryLabel(category)}
+            </Link>
+          ))}
+        </div>
+      </section>
 
-      {exercises &&
-        CATEGORIES.map((category) => {
-          const inCategory = exercises.filter((e) => e.category === category)
-          if (inCategory.length === 0) return null
-          return (
-            <section key={category} className="section">
-              <h2>{category}</h2>
-              <div className="card-grid">
-                {inCategory.map((exercise) => (
-                  <Link key={exercise.id} className="card" to={`/exercise/${exercise.id}`}>
-                    {exercise.name}
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )
-        })}
-
-      {exercises && (
-        <Link className="card card-add" to="/add-exercise">
-          + Add custom exercise
-        </Link>
-      )}
+      <section className="section">
+        <h2>Workouts</h2>
+        <div className="tile-row">
+          {WORKOUT_TYPES.map((type) => (
+            <Link key={type.slug} className="tile tile-small" to={`/workouts/${type.slug}`}>
+              {type.label}
+            </Link>
+          ))}
+        </div>
+      </section>
     </main>
   )
 }

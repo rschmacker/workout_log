@@ -18,23 +18,28 @@ import {
   volume,
   type WorkoutSet,
 } from '../sets'
+import {
+  emptyRows,
+  isPrefilled,
+  isSkipped,
+  prefillRow,
+  updateRows,
+  type RowInput,
+} from '../setRows'
 import { supabase } from '../supabase'
 
 const WEIGHT_STEP = 2.5
 
-// What is typed into one row (kept as text so "62," doesn't jump around while typing)
-type RowInput = { weight: string; reps: string }
-
-function emptyRows(): RowInput[] {
-  return Array.from({ length: MAX_SETS }, () => ({ weight: '', reps: '' }))
-}
-
 // Fill the 5 rows with the saved sets of one date
 function rowsForDate(sets: WorkoutSet[], date: string): RowInput[] {
-  const rows = emptyRows()
+  const rows = emptyRows(MAX_SETS)
   for (const s of sets) {
     if (s.date === date) {
-      rows[s.set_number - 1] = { weight: formatWeight(s.weight_kg), reps: String(s.reps) }
+      rows[s.set_number - 1] = {
+        weight: formatWeight(s.weight_kg),
+        reps: String(s.reps),
+        ownWeight: true,
+      }
     }
   }
   return rows
@@ -54,7 +59,7 @@ export default function ExerciseScreen() {
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [sets, setSets] = useState<WorkoutSet[] | null>(null) // all sets of this exercise
   const [date, setDate] = useState(initialDate)
-  const [rows, setRows] = useState<RowInput[]>(emptyRows)
+  const [rows, setRows] = useState<RowInput[]>(() => emptyRows(MAX_SETS))
   const [dirty, setDirty] = useState(false) // unsaved changes in the rows?
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -113,26 +118,36 @@ export default function ExerciseScreen() {
     setMessage(null)
   }
 
-  function updateRow(index: number, field: keyof RowInput, value: string) {
-    setRows((old) => old.map((row, i) => (i === index ? { ...row, [field]: value } : row)))
+  function updateRow(index: number, field: 'weight' | 'reps', value: string) {
+    setRows((old) => updateRows(old, index, field, value))
     setDirty(true)
     setMessage(null)
   }
 
-  // The − / + buttons next to the weight field
+  // Tapping into a row with an empty weight copies the weight of the set above (gray).
+  // Returns the updated rows. Doesn't count as an unsaved change: gray weights without
+  // reps are skipped on save anyway.
+  function prefill(index: number): RowInput[] {
+    const next = prefillRow(rows, index)
+    if (next !== rows) setRows(next)
+    return next
+  }
+
+  // The − / + buttons next to the weight field.
+  // On an empty row they start from the weight of the set above.
   function stepWeight(index: number, delta: number) {
-    const current = parseWeight(rows[index].weight) ?? 0
+    const current = parseWeight(prefillRow(rows, index)[index].weight) ?? 0
     updateRow(index, 'weight', formatWeight(Math.max(0, current + delta)))
   }
 
   async function save(e: FormEvent) {
     e.preventDefault()
 
-    // Check the rows; completely empty rows are skipped
+    // Check the rows; empty rows and rows with only a prefilled weight are skipped
     const toSave = []
     for (let i = 0; i < MAX_SETS; i++) {
+      if (isSkipped(rows[i])) continue
       const { weight, reps } = rows[i]
-      if (weight.trim() === '' && reps.trim() === '') continue
       const weightKg = parseWeight(weight)
       const repCount = parseReps(reps)
       if (weightKg === null) {
@@ -307,8 +322,17 @@ export default function ExerciseScreen() {
                   type="text"
                   inputMode="decimal"
                   aria-label={`Set ${i + 1} weight in kg`}
+                  className={isPrefilled(row) ? 'prefilled' : undefined}
                   value={row.weight}
                   onChange={(e) => updateRow(i, 'weight', e.target.value)}
+                  onFocus={(e) => {
+                    // Prefill from the set above, and select a prefilled weight so
+                    // typing replaces it. (Delayed, because iPhone Safari would undo
+                    // an immediate selection.)
+                    if (!isPrefilled(prefill(i)[i])) return
+                    const input = e.currentTarget
+                    setTimeout(() => input.setSelectionRange(0, input.value.length), 0)
+                  }}
                 />
                 <button
                   type="button"
@@ -326,6 +350,7 @@ export default function ExerciseScreen() {
                 aria-label={`Set ${i + 1} reps`}
                 value={row.reps}
                 onChange={(e) => updateRow(i, 'reps', e.target.value)}
+                onFocus={() => prefill(i)}
               />
             </div>
           ))}

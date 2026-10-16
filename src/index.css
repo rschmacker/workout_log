@@ -394,6 +394,11 @@ fieldset.field legend {
   text-align: center;
 }
 
+/* Weight copied from the set above: gray until you enter reps for that set */
+.set-table input.prefilled {
+  color: var(--muted);
+}
+
 .weight-input {
   display: grid;
   grid-template-columns: 44px 1fr 44px;

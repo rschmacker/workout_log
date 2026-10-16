@@ -16,14 +16,18 @@
 
     <!-- PWA manifest (name, icons, standalone display) -->
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#111827" />
+    <!-- Status bar / browser bar color, matching the app's light and dark mode -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f2f2f7" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111827" />
 
     <!-- iPhone Home Screen support (Safari reads these, not the manifest icons) -->
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Workouts" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- "default": iOS draws a normal status bar in the theme color, with dark or light
+         text as needed ("black-translucent" always has white text, unreadable in light mode) -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   </head>
   <body>
     <div id="root"></div>

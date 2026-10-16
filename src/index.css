@@ -1,20 +1,49 @@
 :root {
-  /* Colors */
+  /* Colors for dark mode (light mode below). All text colors are checked
+     for at least 4.5:1 contrast. */
   --bg: #111827;
-  --surface: #1f2937;
+  --surface: #1f2937; /* cards, tiles, inputs */
+  --pressed: #374151; /* card / button background while pressed */
   --text: #f9fafb;
   --muted: #9ca3af;
-  --accent: #f97316;
-  --accent-text: #111827;
+  --accent: #f97316; /* orange fills: buttons, selected day, badges */
+  --accent-text: #111827; /* text on orange fills */
+  --accent-ink: #f97316; /* orange text and icons: links, − / + */
   --line: #374151; /* borders and chart gridlines */
+  --error: #fca5a5;
+  --danger-line: #f87171;
+  --success: #86efac;
   --chart-series: #ea580c; /* slightly deeper orange, checked for contrast on --surface */
   --body-base: #4b5563; /* body figures: muscles that aren't highlighted */
   --body-highlight: var(--accent); /* body figures: highlighted muscles */
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 14px rgb(0 0 0 / 0.25);
+  --overlay-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
 
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   -webkit-text-size-adjust: 100%;
+}
+
+/* Light mode: follows the phone's appearance setting (Settings → Display & Brightness) */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f2f2f7;
+    --surface: #ffffff;
+    --pressed: #e5e7eb;
+    --text: #111827;
+    --muted: #5f6673;
+    --accent-ink: #c2410c; /* darker orange, readable on white */
+    --line: #d1d5db;
+    --error: #b91c1c;
+    --danger-line: #dc2626;
+    --success: #166534;
+    --body-base: #cbd0d8;
+    --shadow: 0 1px 2px rgb(15 23 42 / 0.06), 0 4px 14px rgb(15 23 42 / 0.08);
+    --overlay-shadow: 0 8px 24px rgb(15 23 42 / 0.16);
+
+    color-scheme: light;
+  }
 }
 
 *,
@@ -35,6 +64,8 @@ body {
   /* Keep content clear of the notch and home bar when running full-screen on iPhone */
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Never scroll sideways */
+  overflow-x: hidden;
   /* Remove the grey flash when tapping on iOS */
   -webkit-tap-highlight-color: transparent;
 }
@@ -42,7 +73,48 @@ body {
 .page {
   max-width: 40rem;
   margin: 0 auto;
-  padding: 1.5rem 1rem;
+  padding: 1.5rem 1.25rem 2.5rem;
+}
+
+/* Subtle press feedback: tappable things shrink a little while pressed */
+.tile,
+.card,
+.button,
+.pill-link,
+.step-button,
+.choice {
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease;
+}
+
+.tile:active,
+.card:active,
+.button:active:not(:disabled),
+.pill-link:active,
+.step-button:active,
+.choice:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile,
+  .card,
+  .button,
+  .pill-link,
+  .step-button,
+  .choice {
+    transition: none;
+  }
+
+  .tile:active,
+  .card:active,
+  .button:active,
+  .pill-link:active,
+  .step-button:active,
+  .choice:active {
+    transform: none;
+  }
 }
 
 h1 {
@@ -78,6 +150,7 @@ h1 {
 .button.secondary {
   background: var(--surface);
   color: var(--text);
+  box-shadow: var(--shadow);
 }
 
 .link-button {
@@ -113,7 +186,7 @@ h1 {
 input {
   min-height: 48px;
   padding: 0 0.875rem;
-  border: 1px solid #374151;
+  border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
   color: var(--text);
@@ -122,7 +195,7 @@ input {
 }
 
 input:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 1px;
 }
 
@@ -135,7 +208,7 @@ input:focus {
 
 .error {
   margin: 0;
-  color: #fca5a5;
+  color: var(--error);
 }
 
 /* Title on the left, small action on the right */
@@ -155,13 +228,13 @@ input:focus {
   align-items: center;
   min-height: 44px;
   margin-bottom: 0.5rem;
-  color: var(--accent);
+  color: var(--accent-ink);
   font-weight: 600;
   text-decoration: none;
 }
 
 .section {
-  margin-top: 1.5rem;
+  margin-top: 1.75rem;
 }
 
 .section h2 {
@@ -178,13 +251,13 @@ input:focus {
 .tile-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.625rem;
+  gap: 0.75rem;
 }
 
 .tile-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.625rem;
+  gap: 0.75rem;
 }
 
 .tile {
@@ -194,10 +267,12 @@ input:focus {
   justify-content: center;
   gap: 0.5rem;
   min-height: 104px;
-  padding: 0.75rem 0.5rem;
-  border-radius: 16px;
+  padding: 0.875rem 0.5rem;
+  border-radius: 18px;
   background: var(--surface);
+  box-shadow: var(--shadow);
   color: var(--text);
+  font-size: 1.0625rem;
   font-weight: 600;
   line-height: 1.25;
   text-align: center;
@@ -205,7 +280,7 @@ input:focus {
 }
 
 .tile:active {
-  background: #374151;
+  background: var(--pressed);
 }
 
 .tile-small {
@@ -263,23 +338,26 @@ input:focus {
   align-items: center;
   min-height: 72px;
   padding: 0.75rem 1rem;
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--surface);
+  box-shadow: var(--shadow);
   color: var(--text);
+  font-size: 1.0625rem;
   font-weight: 600;
   line-height: 1.25;
   text-decoration: none;
 }
 
 .card:active {
-  background: #374151;
+  background: var(--pressed);
 }
 
 .card-add {
   justify-content: center;
   margin-top: 1.5rem;
-  border: 2px dashed #374151;
+  border: 2px dashed var(--line);
   background: none;
+  box-shadow: none;
   color: var(--muted);
 }
 
@@ -303,7 +381,7 @@ fieldset.field legend {
 
 .choice {
   min-height: 48px;
-  border: 1px solid #374151;
+  border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
   color: var(--text);
@@ -319,24 +397,25 @@ fieldset.field legend {
 
 .button.danger {
   background: none;
-  border: 1px solid #f87171;
-  color: #fca5a5;
+  border: 1px solid var(--danger-line);
+  color: var(--error);
 }
 
 .danger-text {
-  color: #fca5a5;
+  color: var(--error);
 }
 
 .success {
   margin: 0;
-  color: #86efac;
+  color: var(--success);
 }
 
 .panel {
   margin-top: 1rem;
   padding: 1rem;
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .panel input {
@@ -348,8 +427,9 @@ fieldset.field legend {
 .calendar {
   margin-top: 1rem;
   padding: 0.75rem;
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .calendar-header {
@@ -365,7 +445,7 @@ fieldset.field legend {
   border: none;
   border-radius: 10px;
   background: none;
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: 1.75rem;
   line-height: 1;
 }
@@ -414,7 +494,7 @@ fieldset.field legend {
   height: 6px;
   margin-left: -3px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-ink);
 }
 
 .calendar-day.selected.marked::after {
@@ -500,8 +580,8 @@ fieldset.field legend {
   padding: 0.25rem;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--bg);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+  background: var(--surface);
+  box-shadow: var(--overlay-shadow);
   list-style: none;
 }
 
@@ -519,7 +599,7 @@ fieldset.field legend {
 }
 
 .suggestions button:active {
-  background: var(--surface);
+  background: var(--pressed);
 }
 
 /* A note shown next to sets (last time, history) */
@@ -544,13 +624,14 @@ fieldset.field legend {
   border: none;
   border-radius: 12px;
   background: var(--surface);
-  color: var(--accent);
+  box-shadow: var(--shadow);
+  color: var(--accent-ink);
   font-size: 1.375rem;
   line-height: 1;
 }
 
 .step-button:active {
-  background: #374151;
+  background: var(--pressed);
 }
 
 .topbar-actions {
@@ -567,7 +648,8 @@ fieldset.field legend {
   padding: 0 1rem;
   border-radius: 999px;
   background: var(--surface);
-  color: var(--accent);
+  box-shadow: var(--shadow);
+  color: var(--accent-ink);
   font-weight: 600;
   text-decoration: none;
 }
@@ -577,8 +659,9 @@ fieldset.field legend {
 .chart {
   position: relative;
   padding: 0.5rem 0;
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--surface);
+  box-shadow: var(--shadow);
   /* Allow scrolling the page vertically while dragging across the chart */
   touch-action: pan-y;
 }
@@ -634,7 +717,8 @@ fieldset.field legend {
   padding: 0.25rem 0.625rem;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--bg);
+  background: var(--surface);
+  box-shadow: var(--overlay-shadow);
   font-size: 0.8125rem;
   white-space: nowrap;
   transform: translate(-50%, -100%);
@@ -675,8 +759,9 @@ fieldset.field legend {
   gap: 0.5rem 1rem;
   margin: 1rem 0 0;
   padding: 0.75rem 1rem;
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .section .pb-box {

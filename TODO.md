@@ -56,11 +56,11 @@ Work through these one at a time, in this order. After each item: stop, tell me 
   - Shoulders: front-deltoids, back-deltoids
   - Arms: biceps, triceps, forearm
   - Core: abs, obliques (front view)
-- [ ] Use the app's accent color for highlighted muscles and a muted gray for the rest, in light and dark mode. ~~Show front and back view side by side where a category needs both (shoulders, arms)~~ — decided: front view only for shoulders and arms; colors done for dark mode, light mode still to do
+- [x] Use the app's accent color for highlighted muscles and a muted gray for the rest, in light and dark mode. ~~Show front and back view side by side where a category needs both (shoulders, arms)~~ — decided: front view only for shoulders and arms
 - [x] Size about 80 to 100 px tall, crisp on retina screens, with an accessible label (e.g. "Chest muscles highlighted"). Make sure it does not slow down the Home screen
-- [ ] Overall look on iPhone: rounded cards with soft shadows, generous spacing, large readable type, tap targets of at least 44 px, light and dark mode, subtle press animations, safe-area padding at the top and bottom, no horizontal scrolling
-- [ ] Applies to the saved workouts section too, so the whole Home screen feels consistent
-- [ ] After building it, tell me how to check it on my phone, and I will send screenshots for adjustments
+- [x] Overall look on iPhone: rounded cards with soft shadows, generous spacing, large readable type, tap targets of at least 44 px, light and dark mode, subtle press animations, safe-area padding at the top and bottom, no horizontal scrolling — light mode follows the iPhone setting; status bar switched to "default" with theme colors
+- [x] Applies to the saved workouts section too, so the whole Home screen feels consistent
+- [ ] After building it, tell me how to check it on my phone, and I will send screenshots for adjustments — waiting for iPhone screenshots (light and dark)
 
 ## 6. Restructured Home screen (Exercises and Workouts)
 Suggested order: do this right after item 3 and before items 4 and 5, since both build on it.

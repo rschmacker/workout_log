@@ -1,0 +1,41 @@
+{
+  "name": "Deadlift + Bench Press + Row",
+  "category": "full body",
+  "warmup": [
+    "Coaches Choice, oder 3 Rounds:",
+    "- 10 Slow DKB/DDB Deadlifts",
+    "- 10 Slow Ring Rows",
+    "- 10 Slow Push Ups",
+    "In 3 Warm Up Sets hocharbeiten zum Deadlift Startgewicht:",
+    "- 10 reps @ leichteres Gewicht",
+    "- 6 reps @ moderates Gewicht",
+    "- 4 reps @ knapp unter Startgewicht",
+    "Dann ab in den Pump!"
+  ],
+  "main": [
+    {
+      "title": "Glute & Hamstring Pump",
+      "time": "15 min",
+      "exercise": "Deadlift",
+      "sets": 5,
+      "reps": "6-8",
+      "cues": ["RIR 1-2", "2 sec eccentric", ">2 min rest"]
+    },
+    {
+      "title": "Chest & Lat Pump",
+      "time": "18 min",
+      "superset": [
+        { "exercise": "DB Bench Press", "sets": 4, "reps": "8-10" },
+        { "exercise": "Inverted Row", "category": "Back", "sets": 5, "reps": "12-15" },
+        { "exercise": "Push-Up", "category": "Chest", "sets": 1, "reps": "max" }
+      ],
+      "cues": [
+        "RIR 1-2",
+        "3 sec eccentric",
+        ">2 min rest",
+        "Sets 1-4: DB Bench Press + Inverted Rows",
+        "Set 5: max Push-Ups + max Inverted Rows"
+      ]
+    }
+  ]
+}

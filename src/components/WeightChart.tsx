@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { formatDay, parseISODate } from '../dates'
-import { formatWeight } from '../sets'
+import { describeSet, formatWeight } from '../sets'
 
 export type ChartPoint = {
   date: string // "YYYY-MM-DD"
@@ -195,7 +195,7 @@ export default function WeightChart({ points }: { points: ChartPoint[] }) {
               y={yOf(points[last].weight) - 12}
               textAnchor={points.length === 1 ? 'middle' : 'end'}
             >
-              {formatWeight(points[last].weight)} kg
+              {points[last].weight === 0 ? 'BW' : `${formatWeight(points[last].weight)} kg`}
             </text>
           )}
         </svg>
@@ -209,9 +209,7 @@ export default function WeightChart({ points }: { points: ChartPoint[] }) {
             left: Math.min(Math.max(xOf(active!), 70), width - 70),
           }}
         >
-          <strong>
-            {formatWeight(activePoint.weight)} kg × {activePoint.reps}
-          </strong>
+          <strong>{describeSet({ weight_kg: activePoint.weight, reps: activePoint.reps })}</strong>
           <span>{formatDay(activePoint.date)}</span>
         </div>
       )}

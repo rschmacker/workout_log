@@ -13,11 +13,11 @@ Personal web app (PWA) to log strength sets per exercise and date. Used mainly o
 
 ## Screens
 1. **Home**: grid/list of common exercises as large tappable cards, grouped by category (Chest, Back, Legs, Shoulders, Arms, Core). Default exercises:
-   - Chest: DB Bench Press, BB Bench Press, Incline DB Press
-   - Back/Hinge: Deadlift, Romanian Deadlift, Bent-Over Row, Pull-Up
+   - Chest: DB Bench Press, BB Bench Press, Incline DB Press, Dip
+   - Back/Hinge: Deadlift, Romanian Deadlift, Bent-Over Row, Pull-Up, Gorilla Row, Chin-Up
    - Legs: Back Squat, Front Squat, Lunge, Hip Thrust
-   - Shoulders: Overhead Press, Lateral Raise
-   - Arms: Biceps Curl, Triceps Extension
+   - Shoulders: Strict Press, DDB Overhead Press, Lateral Raise (Strict Press was "Overhead Press" until 2026-10-16)
+   - Arms: Biceps Curl, Triceps Extension, Skullcrusher
    - Include an "Add custom exercise" option.
 2. **Exercise screen** (after tapping an exercise):
    - Calendar view (month grid) to pick a date; default today; dates with logged sets for this exercise are marked with a dot

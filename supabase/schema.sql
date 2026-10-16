@@ -115,11 +115,18 @@ create table if not exists public.exercise_entries (
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   exercise_id uuid not null references public.exercises (id) on delete cascade,
   date date not null,
-  -- Nullable so a day entry can later hold other info (e.g. the saved workout) without a note
+  -- Nullable so a day entry can hold the saved workout without a note
   note text check (note is null or length(note) <= 200),
+  -- Name of the saved workout it was logged from (added 2026-10-16)
+  workout text check (workout is null or length(workout) <= 200),
   created_at timestamptz not null default now(),
   unique (user_id, exercise_id, date)
 );
+
+-- For databases created before the workout column existed
+-- (also in migrations/2026-10-16_entries_workout.sql)
+alter table public.exercise_entries
+  add column if not exists workout text check (workout is null or length(workout) <= 200);
 
 revoke all on public.exercise_entries from anon;
 grant select, insert, update, delete on public.exercise_entries to authenticated;
@@ -165,20 +172,30 @@ create policy "Delete own entries" on public.exercise_entries
 -- Built-in exercises (user_id = null)
 -- ---------------------------------------------------------------------------
 
+-- Overhead Press was renamed to Strict Press on 2026-10-16
+-- (also in migrations/2026-10-16_more_built_in_exercises.sql)
+update public.exercises set name = 'Strict Press'
+where user_id is null and name = 'Overhead Press';
+
 insert into public.exercises (user_id, name, category) values
   (null, 'DB Bench Press', 'Chest'),
   (null, 'BB Bench Press', 'Chest'),
   (null, 'Incline DB Press', 'Chest'),
+  (null, 'Dip', 'Chest'),
   (null, 'Deadlift', 'Back'),
   (null, 'Romanian Deadlift', 'Back'),
   (null, 'Bent-Over Row', 'Back'),
   (null, 'Pull-Up', 'Back'),
+  (null, 'Gorilla Row', 'Back'),
+  (null, 'Chin-Up', 'Back'),
   (null, 'Back Squat', 'Legs'),
   (null, 'Front Squat', 'Legs'),
   (null, 'Lunge', 'Legs'),
   (null, 'Hip Thrust', 'Legs'),
-  (null, 'Overhead Press', 'Shoulders'),
+  (null, 'Strict Press', 'Shoulders'),
+  (null, 'DDB Overhead Press', 'Shoulders'),
   (null, 'Lateral Raise', 'Shoulders'),
   (null, 'Biceps Curl', 'Arms'),
-  (null, 'Triceps Extension', 'Arms')
+  (null, 'Triceps Extension', 'Arms'),
+  (null, 'Skullcrusher', 'Arms')
 on conflict do nothing;

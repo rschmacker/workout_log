@@ -100,7 +100,12 @@ export function bestByVolume<T extends WorkoutSet>(sets: T[]): T | null {
   return bestBy(sets, volume)
 }
 
-// "100 kg × 8"
-export function describeSet(s: WorkoutSet): string {
-  return `${formatWeight(s.weight_kg)} kg × ${s.reps}`
+// "100 kg × 8", or "BW × 12" for a bodyweight set (0 kg)
+export function describeSet(s: { weight_kg: number; reps: number }): string {
+  return `${s.weight_kg === 0 ? 'BW' : `${formatWeight(s.weight_kg)} kg`} × ${s.reps}`
+}
+
+// Short form for lists: "100 × 8", or "BW × 12"
+export function shortSet(s: { weight_kg: number; reps: number }): string {
+  return `${s.weight_kg === 0 ? 'BW' : formatWeight(s.weight_kg)} × ${s.reps}`
 }

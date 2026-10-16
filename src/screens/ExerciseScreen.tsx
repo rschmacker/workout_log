@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import BackLink from '../components/BackLink'
 import { useGoBack } from '../useGoBack'
 import Calendar from '../components/Calendar'
@@ -7,7 +7,13 @@ import EditExercise from '../components/EditExercise'
 import NoteField from '../components/NoteField'
 import PersonalBests from '../components/PersonalBests'
 import { formatDay, todayISO } from '../dates'
-import { fetchEntries, noteFor, saveNote, type ExerciseEntry } from '../entries'
+import {
+  fetchEntries,
+  noteFor,
+  saveEntry,
+  workoutFor,
+  type ExerciseEntry,
+} from '../entries'
 import { categorySlug, type Exercise } from '../exercises'
 import {
   MAX_SETS,
@@ -19,6 +25,7 @@ import {
   formatWeight,
   parseReps,
   parseWeight,
+  shortSet,
   volume,
   type WorkoutSet,
 } from '../sets'
@@ -31,6 +38,9 @@ import {
   type RowInput,
 } from '../setRows'
 import { supabase } from '../supabase'
+import type { MainExercise } from '../workoutFormat'
+import { workoutExercises } from '../workoutExercises'
+import { blockOf, findWorkout, prescription } from '../workouts'
 
 const WEIGHT_STEP = 2.5
 
@@ -40,7 +50,8 @@ function rowsForDate(sets: WorkoutSet[], date: string): RowInput[] {
   for (const s of sets) {
     if (s.date === date) {
       rows[s.set_number - 1] = {
-        weight: formatWeight(s.weight_kg),
+        // Bodyweight sets (0 kg) show an empty weight field
+        weight: s.weight_kg === 0 ? '' : formatWeight(s.weight_kg),
         reps: String(s.reps),
         ownWeight: true,
       }
@@ -49,9 +60,31 @@ function rowsForDate(sets: WorkoutSet[], date: string): RowInput[] {
   return rows
 }
 
-export default function ExerciseScreen() {
+// The note shown for a date: the saved one. On a day without sets yet, opened from a
+// workout: the workout's note (e.g. "wide grip"), which is saved together with the sets.
+function noteToShow(
+  sets: WorkoutSet[],
+  entries: ExerciseEntry[],
+  exerciseId: string,
+  date: string,
+  workoutNote: string,
+): string {
+  const saved = noteFor(entries, exerciseId, date)
+  const freshDay = !sets.some((s) => s.date === date)
+  return saved || (freshDay ? workoutNote : '')
+}
+
+// Starts the screen fresh whenever the address changes (e.g. switching to the other
+// exercise of a superset), so nothing from the previous exercise is left over
+export default function ExerciseScreenRoute() {
+  const location = useLocation()
+  return <ExerciseScreen key={location.pathname + location.search} />
+}
+
+function ExerciseScreen() {
   const { id = '' } = useParams()
   const goBack = useGoBack()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
   // Start on the date from the URL (e.g. coming from History), otherwise today
@@ -59,6 +92,18 @@ export default function ExerciseScreen() {
     const fromUrl = searchParams.get('date')
     return fromUrl && /^\d{4}-\d{2}-\d{2}$/.test(fromUrl) ? fromUrl : todayISO()
   })
+
+  // Opened from a saved workout (?workout=…&item=…): that workout, this main exercise,
+  // and in a superset the other exercises of the superset
+  const [fromWorkout] = useState(() => {
+    const workout = findWorkout(searchParams.get('workout'))
+    const item = workout?.exercises[Number(searchParams.get('item'))]
+    if (!workout || !item) return null
+    const block = blockOf(workout, item.index)
+    const partners = block ? block.exercises.filter((e) => e.index !== item.index) : []
+    return { workout, item, block, partners }
+  })
+  const workoutNote = fromWorkout?.item.note ?? ''
 
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [sets, setSets] = useState<WorkoutSet[] | null>(null) // all sets of this exercise
@@ -91,10 +136,10 @@ export default function ExerciseScreen() {
         setSets(allSets)
         setEntries(allEntries)
         setRows(rowsForDate(allSets, initialDate))
-        setNote(noteFor(allEntries, id, initialDate))
+        setNote(noteToShow(allSets, allEntries, id, initialDate, workoutNote))
       })
       .catch((e: Error) => setLoadError(e.message))
-  }, [id, initialDate])
+  }, [id, initialDate, workoutNote])
 
   // Reload sets and notes after saving or deleting, and refill that date
   async function reloadDay(forDate: string) {
@@ -103,7 +148,7 @@ export default function ExerciseScreen() {
       setSets(allSets)
       setEntries(allEntries)
       setRows(rowsForDate(allSets, forDate))
-      setNote(noteFor(allEntries, id, forDate))
+      setNote(noteToShow(allSets, allEntries, id, forDate, workoutNote))
       setDirty(false)
     } catch (e) {
       setMessage({ kind: 'error', text: `Could not reload: ${(e as Error).message}` })
@@ -129,7 +174,7 @@ export default function ExerciseScreen() {
     if (dirty && !window.confirm('You have unsaved changes. Discard them?')) return
     setDate(newDate)
     setRows(rowsForDate(sets ?? [], newDate))
-    setNote(noteFor(entries ?? [], id, newDate))
+    setNote(noteToShow(sets ?? [], entries ?? [], id, newDate, workoutNote))
     setDirty(false)
     setMessage(null)
   }
@@ -162,23 +207,23 @@ export default function ExerciseScreen() {
     updateRow(index, 'weight', formatWeight(Math.max(0, current + delta)))
   }
 
-  async function save(e: FormEvent) {
-    e.preventDefault()
-
+  // Saves the sets and note of the selected day. Returns true if everything was saved.
+  async function saveDay(): Promise<boolean> {
     // Check the rows; empty rows and rows with only a prefilled weight are skipped
     const toSave = []
     for (let i = 0; i < MAX_SETS; i++) {
       if (isSkipped(rows[i])) continue
       const { weight, reps } = rows[i]
-      const weightKg = parseWeight(weight)
+      // An empty weight means bodyweight (saved as 0 kg)
+      const weightKg = weight.trim() === '' ? 0 : parseWeight(weight)
       const repCount = parseReps(reps)
       if (weightKg === null) {
         setMessage({ kind: 'error', text: `Set ${i + 1}: enter a weight like 60 or 62.5.` })
-        return
+        return false
       }
       if (repCount === null) {
         setMessage({ kind: 'error', text: `Set ${i + 1}: enter the reps as a whole number.` })
-        return
+        return false
       }
       toSave.push({ exercise_id: id, date, set_number: i + 1, weight_kg: weightKg, reps: repCount })
     }
@@ -187,7 +232,7 @@ export default function ExerciseScreen() {
         kind: 'error',
         text: 'Enter at least one set, or use "Delete this day" to remove the entry.',
       })
-      return
+      return false
     }
 
     // Did this day beat the personal bests of all other days?
@@ -227,11 +272,12 @@ export default function ExerciseScreen() {
     if (error) {
       setMessage({ kind: 'error', text: `Could not save: ${error.message}` })
       setBusy(false)
-      return
+      return false
     }
 
-    // 3. Save the note (an empty note removes it)
-    const noteError = await saveNote(id, date, note)
+    // 3. Save the note, and which workout it was logged from (keeps an earlier one)
+    const workoutName = fromWorkout?.workout.name ?? workoutFor(entries ?? [], id, date)
+    const noteError = await saveEntry(id, date, note, workoutName)
 
     await reloadDay(date)
     if (noteError) {
@@ -249,6 +295,25 @@ export default function ExerciseScreen() {
       })
     }
     setBusy(false)
+    return !noteError
+  }
+
+  function save(e: FormEvent) {
+    e.preventDefault()
+    saveDay()
+  }
+
+  // Superset: save this exercise (if something was entered), then open the partner
+  // exercise on the same date. It replaces this screen, so Back goes to the workout.
+  async function goToPartner(partner: MainExercise) {
+    if (!fromWorkout) return
+    if (dirty && rows.some((r) => !isSkipped(r)) && !(await saveDay())) return
+    const target = (await workoutExercises()).get(partner.exercise.toLowerCase())
+    if (!target) return
+    navigate(
+      `/exercise/${target.id}?workout=${fromWorkout.workout.slug}&item=${partner.index}&date=${date}`,
+      { replace: true },
+    )
   }
 
   async function deleteDay() {
@@ -262,7 +327,7 @@ export default function ExerciseScreen() {
       .delete()
       .eq('exercise_id', id)
       .eq('date', date)
-    const noteError = error ? null : await saveNote(id, date, '')
+    const noteError = error ? null : await saveEntry(id, date, '', '')
     if (error || noteError) {
       setMessage({ kind: 'error', text: `Could not delete: ${error?.message ?? noteError}` })
     } else {
@@ -290,8 +355,17 @@ export default function ExerciseScreen() {
   }
 
   const isCustom = exercise.user_id !== null
-  // Where Back goes if this screen was opened directly: the body part's list
-  const parent = `/exercises/${categorySlug(exercise.category)}`
+  // Where Back goes if this screen was opened directly: the workout or the body part's list
+  const parent = fromWorkout
+    ? `/workout/${fromWorkout.workout.slug}`
+    : `/exercises/${categorySlug(exercise.category)}`
+
+  // From a workout, only the prescribed number of sets is shown (more if more are saved)
+  const savedSetCount = Math.max(
+    0,
+    ...sets.filter((s) => s.date === date).map((s) => s.set_number),
+  )
+  const visibleSets = fromWorkout ? Math.max(fromWorkout.item.sets, savedSetCount) : MAX_SETS
 
   return (
     <main className="page">
@@ -310,6 +384,9 @@ export default function ExerciseScreen() {
           </Link>
         </div>
       </header>
+      {fromWorkout && (
+        <p className="muted workout-subtitle">From workout: {fromWorkout.workout.name}</p>
+      )}
 
       {editing && (
         <EditExercise
@@ -331,9 +408,21 @@ export default function ExerciseScreen() {
       {lastSession && (
         <p className="last-time">
           <span className="muted">Last time ({formatDay(lastSession.date)}):</span>{' '}
-          {lastSession.sets.map((s) => `${formatWeight(s.weight_kg)} × ${s.reps}`).join(' · ')}
+          {lastSession.sets.map(shortSet).join(' · ')}
           {lastSession.note && <span className="note-text"> · {lastSession.note}</span>}
         </p>
+      )}
+
+      {fromWorkout && (
+        <div className="workout-plan">
+          <strong>Plan: {prescription(fromWorkout.item)}</strong>
+          {fromWorkout.block && fromWorkout.block.cues.length > 0 && (
+            <span>{fromWorkout.block.cues.join(' · ')}</span>
+          )}
+          {fromWorkout.partners.length > 0 && (
+            <span>Superset with {fromWorkout.partners.map((p) => p.exercise).join(' and ')}</span>
+          )}
+        </div>
       )}
 
       <form onSubmit={save}>
@@ -342,7 +431,7 @@ export default function ExerciseScreen() {
           <span className="set-head set-head-weight">Weight (kg)</span>
           <span className="set-head">Reps</span>
 
-          {rows.map((row, i) => (
+          {rows.slice(0, visibleSets).map((row, i) => (
             <div key={i} className="set-row">
               <span className="set-number">{i + 1}</span>
               <div className="weight-input">
@@ -359,6 +448,8 @@ export default function ExerciseScreen() {
                   inputMode="decimal"
                   aria-label={`Set ${i + 1} weight in kg`}
                   className={isPrefilled(row) ? 'prefilled' : undefined}
+                  // Empty = bodyweight
+                  placeholder="BW"
                   value={row.weight}
                   onChange={(e) => updateRow(i, 'weight', e.target.value)}
                   onFocus={(e) => {
@@ -398,6 +489,18 @@ export default function ExerciseScreen() {
           <button className="button" disabled={busy}>
             {hasSavedSets ? 'Save changes' : 'Save'}
           </button>
+          {/* Superset: jump to the other exercise(s), saving this one first */}
+          {fromWorkout?.partners.map((partner) => (
+            <button
+              key={partner.index}
+              type="button"
+              className="button secondary"
+              disabled={busy}
+              onClick={() => goToPartner(partner)}
+            >
+              {dirty ? 'Save & go to' : 'Go to'} {partner.exercise} ›
+            </button>
+          ))}
           {message && (
             <p className={message.kind === 'error' ? 'error' : 'success'}>{message.text}</p>
           )}

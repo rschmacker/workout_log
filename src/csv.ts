@@ -9,7 +9,7 @@ export type ExportRow = {
   weight_kg: number
   reps: number
   note: string
-  workout: string // empty until saved workouts exist
+  workout: string // name of the saved workout it was logged from, or empty
 }
 
 const COLUMNS = [
@@ -28,14 +28,15 @@ const COLUMNS = [
 export function buildExportRows(
   sets: { exercise_id: string; date: string; set_number: number; weight_kg: number; reps: number }[],
   exercises: { id: string; name: string; category: string }[],
-  entries: { exercise_id: string; date: string; note: string | null }[],
+  entries: { exercise_id: string; date: string; note: string | null; workout: string | null }[],
 ): ExportRow[] {
   const exerciseById = new Map(exercises.map((e) => [e.id, e]))
-  const noteByDay = new Map(entries.map((e) => [`${e.exercise_id}|${e.date}`, e.note ?? '']))
+  const entryByDay = new Map(entries.map((e) => [`${e.exercise_id}|${e.date}`, e]))
 
   return sets
     .map((s) => {
       const exercise = exerciseById.get(s.exercise_id)
+      const entry = entryByDay.get(`${s.exercise_id}|${s.date}`)
       return {
         date: s.date,
         exercise: exercise?.name ?? '',
@@ -43,8 +44,8 @@ export function buildExportRows(
         set_number: s.set_number,
         weight_kg: s.weight_kg,
         reps: s.reps,
-        note: noteByDay.get(`${s.exercise_id}|${s.date}`) ?? '',
-        workout: '',
+        note: entry?.note ?? '',
+        workout: entry?.workout ?? '',
       }
     })
     .sort(

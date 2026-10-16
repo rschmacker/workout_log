@@ -333,6 +333,133 @@ input:focus {
   margin-top: 0.5rem;
 }
 
+/* ---------- Saved workouts ---------- */
+
+.workout-subtitle {
+  margin: 0.25rem 0 0;
+}
+
+/* Exercise name with the "✓ Done" badge next to it */
+.workout-exercise-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.done-badge {
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+  background: var(--success);
+  color: var(--bg);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.card.done {
+  opacity: 0.75;
+}
+
+/* Main exercise whose exercise couldn't be found or created */
+.card.disabled {
+  opacity: 0.5;
+}
+
+.exercise-item .note-text {
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+/* Warmup and finisher: lines as written, "- " lines as bullet points */
+.plain-list {
+  padding: 0.75rem 1rem;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.plain-list p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.plain-list div + div {
+  margin-top: 0.625rem;
+}
+
+.plain-list ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.plain-list li + li {
+  margin-top: 0.125rem;
+}
+
+/* "Plan: 4 sets · 6-8 reps", cues and superset partner above the set rows */
+.workout-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.workout-plan span {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* One part of the workout: a single exercise or a superset */
+.block + .block {
+  margin-top: 1.25rem;
+}
+
+.block-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+
+.block-cues {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.block-exercises {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Superset: the exercises are joined by an orange bar on the left */
+.superset .block-exercises {
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--accent);
+}
+
+.superset-label {
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* "BW" in an empty weight field means bodyweight */
+.set-table input::placeholder {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
 .card {
   display: flex;
   align-items: center;

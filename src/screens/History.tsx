@@ -9,7 +9,7 @@ import {
   bestByVolume,
   bestByWeight,
   fetchAllSets,
-  formatWeight,
+  shortSet,
   type WorkoutSet,
 } from '../sets'
 import { supabase } from '../supabase'
@@ -103,9 +103,7 @@ export default function History() {
                         )}
                       </span>
                       <span>
-                        {day.sets
-                          .map((s) => `${formatWeight(s.weight_kg)} × ${s.reps}`)
-                          .join(' · ')}
+                        {day.sets.map(shortSet).join(' · ')}
                       </span>
                       {note && <span className="note-text">{note}</span>}
                     </Link>

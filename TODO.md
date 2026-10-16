@@ -26,25 +26,32 @@ Work through these one at a time, in this order. After each item: stop, tell me 
 
 ## 4. Saved workouts
 ### 4a. Data and structure
-- [ ] Workouts are defined in files in the repo (`workouts/*.json`), not in the app UI; they are bundled at build time. Document the file format in `workouts/README.md` with one example
-- [ ] Fields: `name`, `category` (upper body | lower body | full body), `warmup` (list of strings), `main` (list of exercises), `finisher` (list of strings)
-- [ ] Each main exercise: `exercise` (must match a base exercise in the library or be created), optional `note` (Besonderheit, e.g. "wide grip"), `sets` (number prescribed), optional `reps`/`weight` hint as text
-- [ ] Validate files at build time and fail with a clear error message if something is wrong
-- [ ] Workout names are derived from the main exercises (e.g. "BB Bench Press + Weighted Pull-Up") unless a `name` is given
+- [x] Workouts are defined in files in the repo (`workouts/*.json`), not in the app UI; they are bundled at build time. Document the file format in `workouts/README.md` with one example
+- [x] Fields: `name`, `category` (upper body | lower body | full body), `warmup` (list of strings), `main` (list of exercises), `finisher` (list of strings)
+- [x] Each main exercise: `exercise` (must match a base exercise in the library or be created), optional `note` (Besonderheit, e.g. "wide grip"), `sets` (number prescribed), optional `reps`/`weight` hint as text
+- [x] Validate files at build time and fail with a clear error message if something is wrong
+- [x] Workout names are derived from the main exercises (e.g. "BB Bench Press + Weighted Pull-Up") unless a `name` is given
 
 ### 4b. Screens
-- [ ] Saved workouts live in the "Workouts" section of the Home screen (see item 6) with three entries: Upper body, Lower body, Full body
-- [ ] Tapping a category lists its workouts (named by main exercises)
-- [ ] Workout screen: Warmup (checklist, no logging), Main exercises (tappable cards), Finisher (checklist, no logging)
-- [ ] Tapping a main exercise opens the existing date + set entry screen for this exercise, with the date defaulting to today, only the prescribed number of sets shown, and the workout's note prefilled as Besonderheit
-- [ ] Back button returns to the workout screen I came from (not the Home screen)
-- [ ] Mark main exercises as done once sets are logged for the selected date
+- [x] Saved workouts live in the "Workouts" section of the Home screen (see item 6) with three entries: Upper body, Lower body, Full body
+- [x] Tapping a category lists its workouts (named by main exercises)
+- [x] Workout screen: Warmup (checklist, no logging), Main exercises (tappable cards), Finisher (checklist, no logging) — decided: warmup and finisher are plain lists without checkboxes
+- [x] Tapping a main exercise opens the existing date + set entry screen for this exercise, with the date defaulting to today, only the prescribed number of sets shown, and the workout's note prefilled as Besonderheit
+- [x] Back button returns to the workout screen I came from (not the Home screen)
+- [x] Mark main exercises as done once sets are logged for the selected date
 
 ### 4c. Home screen integration
-- [ ] When a workout contains a main exercise, make sure it appears on the Home screen
-- [ ] If it is a variation of an existing exercise (e.g. "wide grip DB Bench Press"), do NOT create a new card, chip or exercise: use the base exercise ("DB Bench Press") and save "wide grip" only as the Besonderheit, so it shows in the history next to weight and reps. The Home screen must stay uncluttered
-- [ ] If the movement is genuinely different and the base exercise does not exist yet, create it as a new exercise card
-- [ ] Rule for "sufficiently different": different movement = new exercise; same movement with different grip/tempo/stance = base exercise + Besonderheit
+- [x] When a workout contains a main exercise, make sure it appears on the Home screen
+- [x] If it is a variation of an existing exercise (e.g. "wide grip DB Bench Press"), do NOT create a new card, chip or exercise: use the base exercise ("DB Bench Press") and save "wide grip" only as the Besonderheit, so it shows in the history next to weight and reps. The Home screen must stay uncluttered
+- [x] If the movement is genuinely different and the base exercise does not exist yet, create it as a new exercise card
+- [x] Rule for "sufficiently different": different movement = new exercise; same movement with different grip/tempo/stance = base exercise + Besonderheit
+- Done (2026-10-16), with these additions and decisions:
+  - Supersets: a main item can be `{ "superset": [...] }`; any main item can have `title`, `time`, `cues`. Superset exercises keep separate screens with a "Save & go to …" button
+  - Bodyweight: an empty weight is saved as 0 kg and shown as "BW"
+  - "Done" means sets logged today; the workout a day was logged from is saved in `exercise_entries.workout` (CSV column)
+  - The build checks variations automatically against the built-in names (`src/builtInExercises.ts`); new exercises need a `category` and are created per user
+  - Built-in exercises: Overhead Press renamed to Strict Press; added DDB Overhead Press, Gorilla Row, Chin-Up, Dip, Skullcrusher
+  - Workouts: 4 files in `workouts/` (2 full body, 1 upper, 1 lower body)
 
 ## 5. Body illustrations and visual polish (phone first)
 - [x] Show a body figure on each body-part button in the "Exercises" section of the Home screen (see item 6): Chest, Back/Hinge, Legs, Shoulders, Arms, Core, with the muscles of that broad category highlighted. Categories only, not individual exercises
@@ -60,7 +67,7 @@ Work through these one at a time, in this order. After each item: stop, tell me 
 - [x] Size about 80 to 100 px tall, crisp on retina screens, with an accessible label (e.g. "Chest muscles highlighted"). Make sure it does not slow down the Home screen
 - [x] Overall look on iPhone: rounded cards with soft shadows, generous spacing, large readable type, tap targets of at least 44 px, light and dark mode, subtle press animations, safe-area padding at the top and bottom, no horizontal scrolling — light mode follows the iPhone setting; status bar switched to "default" with theme colors
 - [x] Applies to the saved workouts section too, so the whole Home screen feels consistent
-- [ ] After building it, tell me how to check it on my phone, and I will send screenshots for adjustments — waiting for iPhone screenshots (light and dark)
+- [x] After building it, tell me how to check it on my phone, and I will send screenshots for adjustments — checked on the iPhone, no changes needed
 
 ## 6. Restructured Home screen (Exercises and Workouts)
 Suggested order: do this right after item 3 and before items 4 and 5, since both build on it.
@@ -68,7 +75,7 @@ Suggested order: do this right after item 3 and before items 4 and 5, since both
 - [x] **Exercises section:** a grid (2 columns on phone) of large buttons, one per body part: Chest, Back/Hinge, Legs, Shoulders, Arms, Core. Each button shows the body image with the highlighted muscles (item 5) and the name. Until item 5 is built, use a plain placeholder icon
 - [x] Tapping a body part opens a list of the exercises for that body part (e.g. Chest: DB Bench Press, BB Bench Press, Incline DB Press). Tapping an exercise opens the existing date + set entry screen. Include "Add custom exercise" at the bottom of this list
 - [x] **Workouts section:** three large buttons: Upper body, Lower body, Full body
-- [ ] Tapping one lists the saved workouts of that type, named by their main exercises. Tapping a workout opens the workout screen (item 4) — list screen exists, shows "No saved workouts yet" until item 4
+- [x] Tapping one lists the saved workouts of that type, named by their main exercises. Tapping a workout opens the workout screen (item 4)
 - [x] Navigation: each screen has a clear back button that goes exactly one level up (entry screen to exercise list to Home, or workout screen to workout list to Home); never jump straight to the Home screen unexpectedly — Back returns to the previous screen; if a screen was opened directly, it goes to its parent
 - [x] Keep it fast: Home should show everything without scrolling much on an iPhone, with both sections visible or at most one short scroll
 - [x] Show the last logged date on each exercise in the lists (small gray text), so I see what I trained recently

@@ -1,0 +1,40 @@
+{
+  "name": "Strict Press + Pull-Up + Bench Press + Row",
+  "category": "upper body",
+  "warmup": [
+    "2 Rounds:",
+    "- 10 Mini Band Overhead Press",
+    "- 10 Pronated Ring Rows",
+    "- 10 Scapula Push Ups",
+    "OH Press + Pull Up Prep (ca. 30 sec Rest zwischen jedem Set):",
+    "- 8 reps Empty Bar + 8 Scap. Pull Ups",
+    "- 6 reps Moderat + 6 Scap. Pull Ups",
+    "- 3 reps Close Working Weight + 3 Scap. Pull Ups"
+  ],
+  "main": [
+    {
+      "superset": [
+        { "exercise": "Strict Press", "note": "seated", "sets": 4, "reps": "8-10" },
+        { "exercise": "Pull-Up", "note": "pronated, weighted", "sets": 4, "reps": "8-10" }
+      ],
+      "cues": [
+        "Scale: 8-10 mixed / negative or leg-assisted pull-ups",
+        "2 sec eccentric both movements",
+        "~2 min rest"
+      ]
+    },
+    {
+      "superset": [
+        { "exercise": "DB Bench Press", "sets": 3, "reps": "10-12" },
+        { "exercise": "Bent-Over Row", "note": "barbell", "sets": 3, "reps": "10-12" }
+      ],
+      "cues": ["2 sec eccentric both movements", "~2 min rest"]
+    },
+    {
+      "title": "Finisher (optional)",
+      "exercise": "Biceps Curl",
+      "note": "single DB",
+      "sets": 3
+    }
+  ]
+}

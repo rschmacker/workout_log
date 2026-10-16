@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import WeightChart, { type ChartPoint } from '../components/WeightChart'
 import { formatDay } from '../dates'
 import PersonalBests from '../components/PersonalBests'
+import { fetchEntries, noteFor, type ExerciseEntry } from '../entries'
 import {
   bestByVolume,
   bestByWeight,
@@ -16,6 +17,7 @@ export default function History() {
   const { id = '' } = useParams()
   const [name, setName] = useState<string | null>(null)
   const [sets, setSets] = useState<WorkoutSet[] | null>(null)
+  const [entries, setEntries] = useState<ExerciseEntry[]>([]) // notes of this exercise
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -28,8 +30,11 @@ export default function History() {
         if (error) setError(error.message)
         else setName(data.name)
       })
-    fetchAllSets(id)
-      .then(setSets)
+    Promise.all([fetchAllSets(id), fetchEntries(id)])
+      .then(([allSets, allEntries]) => {
+        setSets(allSets)
+        setEntries(allEntries)
+      })
       .catch((e: Error) => setError(e.message))
   }, [id])
 
@@ -86,24 +91,28 @@ export default function History() {
           <section className="section">
             <h2>All sessions</h2>
             <ul className="history-list">
-              {[...days].reverse().map((day) => (
-                <li key={day.date}>
-                  <Link className="history-item" to={`/exercise/${id}?date=${day.date}`}>
-                    <span className="history-date">
-                      {formatDay(day.date)}
-                      {heaviestDate === day.date && <span className="pb-badge">Heaviest</span>}
-                      {mostVolumeDate === day.date && (
-                        <span className="pb-badge">Best volume</span>
-                      )}
-                    </span>
-                    <span>
-                      {day.sets
-                        .map((s) => `${formatWeight(s.weight_kg)} × ${s.reps}`)
-                        .join(' · ')}
-                    </span>
-                  </Link>
-                </li>
-              ))}
+              {[...days].reverse().map((day) => {
+                const note = noteFor(entries, id, day.date)
+                return (
+                  <li key={day.date}>
+                    <Link className="history-item" to={`/exercise/${id}?date=${day.date}`}>
+                      <span className="history-date">
+                        {formatDay(day.date)}
+                        {heaviestDate === day.date && <span className="pb-badge">Heaviest</span>}
+                        {mostVolumeDate === day.date && (
+                          <span className="pb-badge">Best volume</span>
+                        )}
+                      </span>
+                      <span>
+                        {day.sets
+                          .map((s) => `${formatWeight(s.weight_kg)} × ${s.reps}`)
+                          .join(' · ')}
+                      </span>
+                      {note && <span className="note-text">{note}</span>}
+                    </Link>
+                  </li>
+                )
+              })}
             </ul>
           </section>
         </>

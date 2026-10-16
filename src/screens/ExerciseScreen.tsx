@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import Calendar from '../components/Calendar'
 import EditExercise from '../components/EditExercise'
+import NoteField from '../components/NoteField'
 import PersonalBests from '../components/PersonalBests'
 import { formatDay, todayISO } from '../dates'
+import { fetchEntries, noteFor, saveNote, type ExerciseEntry } from '../entries'
 import type { Exercise } from '../exercises'
 import {
   MAX_SETS,
@@ -58,9 +60,12 @@ export default function ExerciseScreen() {
 
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [sets, setSets] = useState<WorkoutSet[] | null>(null) // all sets of this exercise
+  // All your notes (all exercises), for this exercise's notes and the suggestions
+  const [entries, setEntries] = useState<ExerciseEntry[] | null>(null)
   const [date, setDate] = useState(initialDate)
   const [rows, setRows] = useState<RowInput[]>(() => emptyRows(MAX_SETS))
-  const [dirty, setDirty] = useState(false) // unsaved changes in the rows?
+  const [note, setNote] = useState('') // "Besonderheiten" of the selected day
+  const [dirty, setDirty] = useState(false) // unsaved changes in the rows or note?
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -68,7 +73,7 @@ export default function ExerciseScreen() {
     null,
   )
 
-  // When the screen opens: load the exercise and all its sets
+  // When the screen opens: load the exercise, all its sets and all your notes
   useEffect(() => {
     supabase
       .from('exercises')
@@ -79,20 +84,24 @@ export default function ExerciseScreen() {
         if (error) setLoadError(error.message)
         else setExercise(data as Exercise)
       })
-    fetchAllSets(id)
-      .then((all) => {
-        setSets(all)
-        setRows(rowsForDate(all, initialDate))
+    Promise.all([fetchAllSets(id), fetchEntries()])
+      .then(([allSets, allEntries]) => {
+        setSets(allSets)
+        setEntries(allEntries)
+        setRows(rowsForDate(allSets, initialDate))
+        setNote(noteFor(allEntries, id, initialDate))
       })
       .catch((e: Error) => setLoadError(e.message))
   }, [id, initialDate])
 
-  // Reload all sets after saving or deleting, and refill the rows of that date
-  async function reloadSets(forDate: string) {
+  // Reload sets and notes after saving or deleting, and refill that date
+  async function reloadDay(forDate: string) {
     try {
-      const all = await fetchAllSets(id)
-      setSets(all)
-      setRows(rowsForDate(all, forDate))
+      const [allSets, allEntries] = await Promise.all([fetchAllSets(id), fetchEntries()])
+      setSets(allSets)
+      setEntries(allEntries)
+      setRows(rowsForDate(allSets, forDate))
+      setNote(noteFor(allEntries, id, forDate))
       setDirty(false)
     } catch (e) {
       setMessage({ kind: 'error', text: `Could not reload: ${(e as Error).message}` })
@@ -106,15 +115,26 @@ export default function ExerciseScreen() {
   const lastSession = useMemo(() => {
     const lastDate = [...loggedDates].filter((d) => d < date).sort().at(-1)
     if (!lastDate || !sets) return null
-    return { date: lastDate, sets: sets.filter((s) => s.date === lastDate) }
-  }, [loggedDates, sets, date])
+    return {
+      date: lastDate,
+      sets: sets.filter((s) => s.date === lastDate),
+      note: noteFor(entries ?? [], id, lastDate),
+    }
+  }, [loggedDates, sets, entries, id, date])
 
   function selectDate(newDate: string) {
     if (newDate === date) return
     if (dirty && !window.confirm('You have unsaved changes. Discard them?')) return
     setDate(newDate)
     setRows(rowsForDate(sets ?? [], newDate))
+    setNote(noteFor(entries ?? [], id, newDate))
     setDirty(false)
+    setMessage(null)
+  }
+
+  function updateNote(value: string) {
+    setNote(value)
+    setDirty(true)
     setMessage(null)
   }
 
@@ -204,8 +224,20 @@ export default function ExerciseScreen() {
     const error = deleteError ?? upsertError
     if (error) {
       setMessage({ kind: 'error', text: `Could not save: ${error.message}` })
+      setBusy(false)
+      return
+    }
+
+    // 3. Save the note (an empty note removes it)
+    const noteError = await saveNote(id, date, note)
+
+    await reloadDay(date)
+    if (noteError) {
+      setMessage({
+        kind: 'error',
+        text: `Sets saved, but the note could not be saved: ${noteError}`,
+      })
     } else {
-      await reloadSets(date)
       setMessage({
         kind: 'ok',
         text:
@@ -218,7 +250,9 @@ export default function ExerciseScreen() {
   }
 
   async function deleteDay() {
-    if (!window.confirm(`Delete all sets for ${formatDay(date)}?`)) return
+    const hasNote = noteFor(entries ?? [], id, date) !== ''
+    const what = hasNote ? 'all sets and the note' : 'all sets'
+    if (!window.confirm(`Delete ${what} for ${formatDay(date)}?`)) return
     setBusy(true)
     setMessage(null)
     const { error } = await supabase
@@ -226,10 +260,11 @@ export default function ExerciseScreen() {
       .delete()
       .eq('exercise_id', id)
       .eq('date', date)
-    if (error) {
-      setMessage({ kind: 'error', text: `Could not delete: ${error.message}` })
+    const noteError = error ? null : await saveNote(id, date, '')
+    if (error || noteError) {
+      setMessage({ kind: 'error', text: `Could not delete: ${error?.message ?? noteError}` })
     } else {
-      await reloadSets(date)
+      await reloadDay(date)
       setMessage({ kind: 'ok', text: 'Deleted' })
     }
     setBusy(false)
@@ -246,7 +281,7 @@ export default function ExerciseScreen() {
     )
   }
 
-  if (!exercise || !sets) {
+  if (!exercise || !sets || !entries) {
     return (
       <main className="page">
         <p className="muted">Loading…</p>
@@ -297,6 +332,7 @@ export default function ExerciseScreen() {
         <p className="last-time">
           <span className="muted">Last time ({formatDay(lastSession.date)}):</span>{' '}
           {lastSession.sets.map((s) => `${formatWeight(s.weight_kg)} × ${s.reps}`).join(' · ')}
+          {lastSession.note && <span className="note-text"> · {lastSession.note}</span>}
         </p>
       )}
 
@@ -355,6 +391,8 @@ export default function ExerciseScreen() {
             </div>
           ))}
         </div>
+
+        <NoteField value={note} onChange={updateNote} entries={entries} exerciseId={id} />
 
         <div className="stack">
           <button className="button" disabled={busy}>

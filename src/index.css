@@ -394,6 +394,60 @@ fieldset.field legend {
   text-align: center;
 }
 
+/* ---------- Besonderheiten (note per exercise and day) ---------- */
+
+.note-field {
+  margin-top: 1rem;
+}
+
+/* Wrapper so the suggestion list can float above the input */
+.note-input {
+  position: relative;
+}
+
+.note-input input {
+  width: 100%;
+}
+
+/* Suggestions float above the field, so the iPhone keyboard doesn't cover them */
+.suggestions {
+  position: absolute;
+  bottom: calc(100% + 0.375rem);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin: 0;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+  list-style: none;
+}
+
+.suggestions button {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  text-align: left;
+}
+
+.suggestions button:active {
+  background: var(--surface);
+}
+
+/* A note shown next to sets (last time, history) */
+.note-text {
+  color: var(--muted);
+  font-style: italic;
+}
+
 /* Weight copied from the set above: gray until you enter reps for that set */
 .set-table input.prefilled {
   color: var(--muted);

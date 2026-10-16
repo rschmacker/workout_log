@@ -10,11 +10,12 @@ Work through these one at a time, in this order. After each item: stop, tell me 
 - Done: the prefill appears when tapping into a row (weight, reps or −/+), shown in gray until reps are entered; gray rows without reps are skipped on save
 
 ## 2. "Besonderheiten" (free text note per exercise entry)
-- [ ] Add a text field below the sets of each exercise/day entry (label: "Besonderheiten", e.g. "wide grip", "3s down")
-- [ ] Schema: new table `exercise_entries` (id, user_id, exercise_id, date, note), unique on (user_id, exercise_id, date); RLS like the other tables; provide SQL in `supabase/schema.sql` plus a migration snippet
-- [ ] Autocomplete: after the first typed letter, suggest my previously entered notes (case-insensitive, matching anywhere in the text); show notes used for this exercise first, then notes from other exercises
-- [ ] Tapping a suggestion fills the field; free text still allowed
-- [ ] Show the note in the history view
+- [x] Add a text field below the sets of each exercise/day entry (label: "Besonderheiten", e.g. "wide grip", "3s down")
+- [x] Schema: new table `exercise_entries` (id, user_id, exercise_id, date, note), unique on (user_id, exercise_id, date); RLS like the other tables; provide SQL in `supabase/schema.sql` plus a migration snippet
+- [x] Autocomplete: after the first typed letter, suggest my previously entered notes (case-insensitive, matching anywhere in the text); show notes used for this exercise first, then notes from other exercises
+- [x] Tapping a suggestion fills the field; free text still allowed
+- [x] Show the note in the history view
+- Done: migration in `supabase/migrations/2026-10-16_exercise_entries.sql` (run 2026-10-16); the note also shows in the "Last time" line
 
 ## 3. CSV export
 - [ ] Button (e.g. in a settings/menu screen) that exports all sets as CSV

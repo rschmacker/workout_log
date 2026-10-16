@@ -18,10 +18,11 @@ Work through these one at a time, in this order. After each item: stop, tell me 
 - Done: migration in `supabase/migrations/2026-10-16_exercise_entries.sql` (run 2026-10-16); the note also shows in the "Last time" line
 
 ## 3. CSV export
-- [ ] Button (e.g. in a settings/menu screen) that exports all sets as CSV
-- [ ] Columns: date, exercise, category, set_number, weight_kg, reps, note, workout (if logged from a saved workout)
-- [ ] Format for German Excel only: UTF-8 with BOM, semicolon delimiter, decimal comma, dates as DD.MM.YYYY. No format options needed
-- [ ] Download works in iPhone Safari / Home Screen app (test it)
+- [x] Button (e.g. in a settings/menu screen) that exports all sets as CSV
+- [x] Columns: date, exercise, category, set_number, weight_kg, reps, note, workout (if logged from a saved workout)
+- [x] Format for German Excel only: UTF-8 with BOM, semicolon delimiter, decimal comma, dates as DD.MM.YYYY. No format options needed
+- [ ] Download works in iPhone Safari / Home Screen app (test it) — built with the iOS share sheet ("Save to Files"); still to be tested on the iPhone
+- Done: Settings screen (top right on Home) with "Export CSV"; the workout column stays empty until item 4
 
 ## 4. Saved workouts
 ### 4a. Data and structure

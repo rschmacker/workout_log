@@ -28,6 +28,24 @@ export async function fetchAllSets(exerciseId: string): Promise<WorkoutSet[]> {
   }
 }
 
+// Loads all sets of all your exercises (for the CSV export), oldest first.
+export async function fetchEverySet(): Promise<(WorkoutSet & { exercise_id: string })[]> {
+  const pageSize = 1000
+  const all: (WorkoutSet & { exercise_id: string })[] = []
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from('workout_sets')
+      .select('exercise_id, date, set_number, weight_kg, reps')
+      .order('date')
+      .order('exercise_id')
+      .order('set_number')
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    all.push(...(data as (WorkoutSet & { exercise_id: string })[]))
+    if (data.length < pageSize) return all
+  }
+}
+
 // Accepts "60", "62.5" and "62,5" (the iPhone keypad shows a comma in German).
 // Returns null if it isn't a valid weight.
 export function parseWeight(text: string): number | null {

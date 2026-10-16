@@ -23,9 +23,9 @@ export default function Home() {
     <main className="page">
       <header className="topbar">
         <h1>Workouts</h1>
-        <button className="link-button" onClick={() => supabase.auth.signOut()}>
-          Sign out
-        </button>
+        <Link className="pill-link" to="/settings">
+          Settings
+        </Link>
       </header>
 
       {error && <p className="error">Could not load exercises: {error}</p>}

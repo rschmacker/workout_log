@@ -4,6 +4,7 @@ import AddExercise from './screens/AddExercise'
 import ExerciseScreen from './screens/ExerciseScreen'
 import History from './screens/History'
 import Home from './screens/Home'
+import Settings from './screens/Settings'
 import { useSession } from './useSession'
 
 function NotFound() {
@@ -36,6 +37,7 @@ export default function App() {
       <Route path="/add-exercise" element={<AddExercise />} />
       <Route path="/exercise/:id" element={<ExerciseScreen />} />
       <Route path="/exercise/:id/history" element={<History />} />
+      <Route path="/settings" element={<Settings email={session.user.email} />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )

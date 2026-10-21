@@ -80,9 +80,37 @@ Suggested order: do this right after item 3 and before items 4 and 5, since both
 - [x] Keep it fast: Home should show everything without scrolling much on an iPhone, with both sections visible or at most one short scroll
 - [x] Show the last logged date on each exercise in the lists (small gray text), so I see what I trained recently
 
+## 7. Workout builder (create workouts inside the app)
+This replaces the repo JSON files from item 4a as the way to create new workouts. ~~Existing JSON workouts stay as read-only built-in examples.~~ Decided: the 4 existing workouts were imported as my own workouts (editable by everyone, deletable by me); the JSON files are removed.
+
+Done in steps: **7a** database + import (done 2026-10-21), **7b** builder screen, **7c** people (names, "by", filter, last edited, conflicts), **7d** friends (allowlist, login, privacy test).
+
+- [x] Data: store workouts in Supabase instead of repo files. Tables: `workouts` (id, user_id null for built-ins, name, category upper|lower|full, warmup text, finisher text, created_at) and `workout_exercises` (id, workout_id, position, exercise_id, sets 1 to 5, reps_hint text, note text for Besonderheit, is_superset bool, superset_note text). RLS: all signed-in users can read and edit all workouts and read the custom exercises they use; only the creator can delete their own workout; built-ins (user_id null) are read-only for everyone. Logged sets, Besonderheiten and history stay private to each user. Provide the SQL and a one-time import of the existing JSON workouts as built-ins — decided: supersets as groups (`superset_with_next`) with `title`, `duration`, `cues` instead of is_superset/superset_note; plus `weight_hint`, `updated_at`, `updated_by`; all exercises are shared and names are unique; an exercise can't be deleted once someone else logged it or a workout uses it
+- [ ] Entry point: in the workout list of each type (Upper body, Lower body, Full body) add a "+ Create workout" button at the top; the new workout is saved under that type
+- [ ] Builder screen, top to bottom:
+  - Name (optional; if empty, name it automatically after the main exercises)
+  - **Warmup:** free text list, one item per line, add/remove items
+  - **Main exercises:** "+ Add exercise" opens the same exercise menu as the Home screen (body-part buttons, then exercise list), including "Add custom exercise". After choosing, return to the builder. Reorder (up/down) and remove exercises
+  - Per main exercise: number of sets (1 to 5), optional reps/weight hint as text, optional Besonderheit (with the same autocomplete as in the entry screen), and a "Superset" switch. If Superset is on, show a free text field for the description (e.g. "with strict pull-ups, no rest") — decided: "Superset with next exercise" switch that groups exercises, plus optional title and cues per exercise/superset
+  - **Finisher:** free text list like the warmup
+  - Save and Cancel; warn before leaving with unsaved changes
+- [ ] Everyone can edit any workout; only the creator can delete their own workout (long press or a menu on the workout in the list). Everyone can also duplicate any workout ("Duplicate" creates my own copy, so I can change things without touching the original). Built-in examples are read-only and can only be duplicated
+- [ ] Because several people can edit: show "last edited by <name>, <date>" on each workout, and if someone else saved changes while I had it open, warn me before overwriting instead of silently replacing their version
+- [ ] Show the superset description as a small label on the exercise in the workout screen
+- [x] The workout screen and logging stay as in item 4: tapping a main exercise opens the entry screen with only the prescribed number of sets
+- [ ] Validation: at least one main exercise; maximum 5 sets; clear error messages
+- [ ] Users: me and 2 friends (3 in total), invite-only. Keep public sign-ups disabled; tell me step by step how to add my friends in Supabase (invite by email) and which login method works best for them (email magic link, or GitHub if they have an account). Make sure strangers cannot register — both friends already have accounts (GitHub); sign-ups are off again
+- [ ] Sharing: workouts and custom exercises are visible to all three users. Logged sets, Besonderheiten and history are private per user (verify with RLS policies) — RLS in place since 7a, verification in 7d
+- [ ] Add a small `profiles` table with a display name per user (editable in a settings screen). Show "by <name>" on each workout in the lists, and add a filter "All / Mine"
+- [ ] Doing someone else's workout logs the sets to my own data only
+- [ ] Test with a second account that sharing and privacy work as described, and tell me the result
+
 ## Decisions
 - Variations (e.g. wide grip) are only saved as Besonderheit in the history, no extra chips or cards on the Home screen
 - Maximum 5 sets everywhere, also in saved workouts
 - Prescribed reps/weight are shown as a text hint above the set fields
 - CSV is for German Excel only
 - Besonderheiten are per exercise and day, not per set
+- New workouts are created in the app (item 7), stored in Supabase; ~~repo JSON files are only built-in examples~~ the JSON files were imported and removed
+- Workouts: everyone can edit, only the creator can delete
+- Supersets are groups ("superset with next exercise") with optional title, time and cues

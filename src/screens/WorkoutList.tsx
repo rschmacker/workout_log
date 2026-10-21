@@ -1,7 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import BackLink from '../components/BackLink'
-import type { Workout } from '../workoutFormat'
-import { WORKOUT_TYPES, WORKOUTS } from '../workouts'
+import { WORKOUT_TYPES, fetchWorkouts, type Workout } from '../workouts'
 
 // "4 exercises · 2 supersets · warmup · finisher"
 function workoutSummary(workout: Workout): string {
@@ -21,6 +21,15 @@ function workoutSummary(workout: Workout): string {
 export default function WorkoutList() {
   const { type: slug } = useParams()
   const type = WORKOUT_TYPES.find((t) => t.slug === slug)
+  const [workouts, setWorkouts] = useState<Workout[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!type) return
+    fetchWorkouts(type.category)
+      .then(setWorkouts)
+      .catch((e: Error) => setError(e.message))
+  }, [type])
 
   if (!type) {
     return (
@@ -31,20 +40,20 @@ export default function WorkoutList() {
     )
   }
 
-  const workouts = WORKOUTS.filter((w) => w.category === type.category)
-
   return (
     <main className="page">
       <BackLink parent="/" />
       <h1>{type.label}</h1>
 
-      {workouts.length === 0 && (
+      {error && <p className="error">Could not load the workouts: {error}</p>}
+      {!workouts && !error && <p className="muted">Loading…</p>}
+      {workouts?.length === 0 && (
         <p className="muted">No {type.label.toLowerCase()} workouts yet.</p>
       )}
 
       <div className="exercise-list">
-        {workouts.map((workout) => (
-          <Link key={workout.slug} className="card exercise-item" to={`/workout/${workout.slug}`}>
+        {workouts?.map((workout) => (
+          <Link key={workout.id} className="card exercise-item" to={`/workout/${workout.id}`}>
             {workout.name}
             <span className="exercise-last">{workoutSummary(workout)}</span>
           </Link>

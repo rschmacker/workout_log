@@ -38,11 +38,33 @@ import {
   type RowInput,
 } from '../setRows'
 import { supabase } from '../supabase'
-import type { MainExercise } from '../workoutFormat'
-import { workoutExercises } from '../workoutExercises'
-import { blockOf, findWorkout, prescription } from '../workouts'
+import {
+  blockOf,
+  fetchWorkout,
+  prescription,
+  type Block,
+  type MainExercise,
+  type Workout,
+} from '../workouts'
 
 const WEIGHT_STEP = 2.5
+
+// Opened from a saved workout: the workout, this main exercise, and in a superset
+// the other exercises of the superset
+type FromWorkout = {
+  workout: Workout
+  item: MainExercise
+  block: Block | null
+  partners: MainExercise[]
+}
+
+function workoutContext(workout: Workout | null, itemIndex: number): FromWorkout | null {
+  const item = workout?.exercises[itemIndex]
+  if (!workout || !item) return null
+  const block = blockOf(workout, item.index)
+  const partners = block ? block.exercises.filter((e) => e.index !== item.index) : []
+  return { workout, item, block, partners }
+}
 
 // Fill the 5 rows with the saved sets of one date
 function rowsForDate(sets: WorkoutSet[], date: string): RowInput[] {
@@ -93,19 +115,13 @@ function ExerciseScreen() {
     return fromUrl && /^\d{4}-\d{2}-\d{2}$/.test(fromUrl) ? fromUrl : todayISO()
   })
 
-  // Opened from a saved workout (?workout=…&item=…): that workout, this main exercise,
-  // and in a superset the other exercises of the superset
-  const [fromWorkout] = useState(() => {
-    const workout = findWorkout(searchParams.get('workout'))
-    const item = workout?.exercises[Number(searchParams.get('item'))]
-    if (!workout || !item) return null
-    const block = blockOf(workout, item.index)
-    const partners = block ? block.exercises.filter((e) => e.index !== item.index) : []
-    return { workout, item, block, partners }
-  })
-  const workoutNote = fromWorkout?.item.note ?? ''
+  // Opened from a saved workout (?workout=…&item=…): loaded together with the sets
+  const [workoutId] = useState(() => searchParams.get('workout'))
+  const [itemIndex] = useState(() => Number(searchParams.get('item')))
+  const [fromWorkout, setFromWorkout] = useState<FromWorkout | null>(null)
 
   const [exercise, setExercise] = useState<Exercise | null>(null)
+  const [myUserId, setMyUserId] = useState<string | null>(null)
   const [sets, setSets] = useState<WorkoutSet[] | null>(null) // all sets of this exercise
   // All your notes (all exercises), for this exercise's notes and the suggestions
   const [entries, setEntries] = useState<ExerciseEntry[] | null>(null)
@@ -120,8 +136,10 @@ function ExerciseScreen() {
     null,
   )
 
-  // When the screen opens: load the exercise, all its sets and all your notes
+  // When the screen opens: load the exercise, all its sets, all your notes and,
+  // if opened from a workout, that workout
   useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setMyUserId(data.session?.user.id ?? null))
     supabase
       .from('exercises')
       .select('id, user_id, name, category')
@@ -131,15 +149,21 @@ function ExerciseScreen() {
         if (error) setLoadError(error.message)
         else setExercise(data as Exercise)
       })
-    Promise.all([fetchAllSets(id), fetchEntries()])
-      .then(([allSets, allEntries]) => {
+    Promise.all([
+      fetchAllSets(id),
+      fetchEntries(),
+      workoutId ? fetchWorkout(workoutId) : Promise.resolve(null),
+    ])
+      .then(([allSets, allEntries, workout]) => {
+        const context = workoutContext(workout, itemIndex)
+        setFromWorkout(context)
         setSets(allSets)
         setEntries(allEntries)
         setRows(rowsForDate(allSets, initialDate))
-        setNote(noteToShow(allSets, allEntries, id, initialDate, workoutNote))
+        setNote(noteToShow(allSets, allEntries, id, initialDate, context?.item.note ?? ''))
       })
       .catch((e: Error) => setLoadError(e.message))
-  }, [id, initialDate, workoutNote])
+  }, [id, initialDate, workoutId, itemIndex])
 
   // Reload sets and notes after saving or deleting, and refill that date
   async function reloadDay(forDate: string) {
@@ -148,7 +172,7 @@ function ExerciseScreen() {
       setSets(allSets)
       setEntries(allEntries)
       setRows(rowsForDate(allSets, forDate))
-      setNote(noteToShow(allSets, allEntries, id, forDate, workoutNote))
+      setNote(noteToShow(allSets, allEntries, id, forDate, fromWorkout?.item.note ?? ''))
       setDirty(false)
     } catch (e) {
       setMessage({ kind: 'error', text: `Could not reload: ${(e as Error).message}` })
@@ -174,7 +198,7 @@ function ExerciseScreen() {
     if (dirty && !window.confirm('You have unsaved changes. Discard them?')) return
     setDate(newDate)
     setRows(rowsForDate(sets ?? [], newDate))
-    setNote(noteToShow(sets ?? [], entries ?? [], id, newDate, workoutNote))
+    setNote(noteToShow(sets ?? [], entries ?? [], id, newDate, fromWorkout?.item.note ?? ''))
     setDirty(false)
     setMessage(null)
   }
@@ -308,10 +332,8 @@ function ExerciseScreen() {
   async function goToPartner(partner: MainExercise) {
     if (!fromWorkout) return
     if (dirty && rows.some((r) => !isSkipped(r)) && !(await saveDay())) return
-    const target = (await workoutExercises()).get(partner.exercise.toLowerCase())
-    if (!target) return
     navigate(
-      `/exercise/${target.id}?workout=${fromWorkout.workout.slug}&item=${partner.index}&date=${date}`,
+      `/exercise/${partner.exerciseId}?workout=${fromWorkout.workout.id}&item=${partner.index}&date=${date}`,
       { replace: true },
     )
   }
@@ -354,10 +376,11 @@ function ExerciseScreen() {
     )
   }
 
-  const isCustom = exercise.user_id !== null
+  // Only the person who created a custom exercise can rename or delete it
+  const isMine = exercise.user_id !== null && exercise.user_id === myUserId
   // Where Back goes if this screen was opened directly: the workout or the body part's list
   const parent = fromWorkout
-    ? `/workout/${fromWorkout.workout.slug}`
+    ? `/workout/${fromWorkout.workout.id}`
     : `/exercises/${categorySlug(exercise.category)}`
 
   // From a workout, only the prescribed number of sets is shown (more if more are saved)
@@ -374,7 +397,7 @@ function ExerciseScreen() {
       <header className="topbar">
         <h1>{exercise.name}</h1>
         <div className="topbar-actions">
-          {isCustom && (
+          {isMine && (
             <button className="link-button" onClick={() => setEditing(!editing)}>
               {editing ? 'Close' : 'Edit'}
             </button>

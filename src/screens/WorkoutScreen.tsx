@@ -3,42 +3,29 @@ import { Link, useParams } from 'react-router'
 import BackLink from '../components/BackLink'
 import PlainList from '../components/PlainList'
 import { formatDay, todayISO } from '../dates'
-import type { Exercise } from '../exercises'
 import { supabase } from '../supabase'
-import type { MainExercise, Workout } from '../workoutFormat'
-import { workoutExercises } from '../workoutExercises'
-import { blockHeading, findWorkout, prescription, workoutTypeOf } from '../workouts'
+import {
+  blockHeading,
+  fetchWorkout,
+  prescription,
+  workoutTypeOf,
+  type MainExercise,
+  type Workout,
+} from '../workouts'
 
 // One main exercise as a card: tap to log it. Marked done once it has sets today.
-function ExerciseCard({
-  workout,
-  item,
-  exercise,
-  done,
-}: {
-  workout: Workout
-  item: MainExercise
-  exercise: Exercise | undefined
-  done: boolean
-}) {
-  const content = (
-    <>
+function ExerciseCard({ workout, item, done }: { workout: Workout; item: MainExercise; done: boolean }) {
+  return (
+    <Link
+      className={`card exercise-item${done ? ' done' : ''}`}
+      to={`/exercise/${item.exerciseId}?workout=${workout.id}&item=${item.index}`}
+    >
       <span className="workout-exercise-name">
         {item.exercise}
         {done && <span className="done-badge">✓ Done</span>}
       </span>
       {item.note && <span className="note-text">{item.note}</span>}
       <span className="exercise-last">{prescription(item)}</span>
-    </>
-  )
-  // Until the exercises are loaded (or if one is missing), the card isn't tappable
-  if (!exercise) return <div className="card exercise-item disabled">{content}</div>
-  return (
-    <Link
-      className={`card exercise-item${done ? ' done' : ''}`}
-      to={`/exercise/${exercise.id}?workout=${workout.slug}&item=${item.index}`}
-    >
-      {content}
     </Link>
   )
 }
@@ -46,31 +33,48 @@ function ExerciseCard({
 // One saved workout: warmup and finisher (plain lists), main exercises and supersets
 // (tap to log). A main exercise is marked done once it has sets logged today.
 export default function WorkoutScreen() {
-  const { slug } = useParams()
-  const workout = findWorkout(slug)
+  const { id = '' } = useParams()
   const today = todayISO()
-  const [exercises, setExercises] = useState<Map<string, Exercise> | null>(null)
+  // undefined = loading, null = doesn't exist
+  const [workout, setWorkout] = useState<Workout | null | undefined>(undefined)
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!workout) return
-    workoutExercises()
-      .then(async (byName) => {
-        setExercises(byName)
-        const ids = workout.exercises.flatMap((m) => byName.get(m.exercise.toLowerCase())?.id ?? [])
+    fetchWorkout(id)
+      .then(async (loaded) => {
+        setWorkout(loaded)
+        if (!loaded) return
+        // Which of its exercises have sets logged today (only your own sets are visible)
         const { data, error } = await supabase
           .from('workout_sets')
           .select('exercise_id')
           .eq('date', today)
-          .in('exercise_id', ids)
+          .in('exercise_id', loaded.exercises.map((e) => e.exerciseId))
         if (error) throw error
         setDoneIds(new Set(data.map((row) => row.exercise_id as string)))
       })
       .catch((e: Error) => setError(e.message))
-  }, [workout, today])
+  }, [id, today])
 
-  if (!workout) {
+  if (error) {
+    return (
+      <main className="page">
+        <BackLink parent="/" />
+        <p className="error">Could not load the workout: {error}</p>
+      </main>
+    )
+  }
+
+  if (workout === undefined) {
+    return (
+      <main className="page">
+        <p className="muted">Loading…</p>
+      </main>
+    )
+  }
+
+  if (workout === null) {
     return (
       <main className="page">
         <BackLink parent="/" />
@@ -80,9 +84,7 @@ export default function WorkoutScreen() {
   }
 
   const type = workoutTypeOf(workout)
-  const exerciseOf = (item: MainExercise) => exercises?.get(item.exercise.toLowerCase())
-  const isDone = (item: MainExercise) => doneIds.has(exerciseOf(item)?.id ?? '')
-  const doneCount = workout.exercises.filter(isDone).length
+  const doneCount = workout.exercises.filter((e) => doneIds.has(e.exerciseId)).length
 
   return (
     <main className="page">
@@ -91,8 +93,6 @@ export default function WorkoutScreen() {
       <p className="muted workout-subtitle">
         {type.label} · {formatDay(today)}
       </p>
-
-      {error && <p className="error">Could not load the exercises: {error}</p>}
 
       {workout.warmup.length > 0 && (
         <section className="section">
@@ -103,8 +103,7 @@ export default function WorkoutScreen() {
 
       <section className="section">
         <h2>
-          Workout
-          {exercises && ` · ${doneCount} of ${workout.exercises.length} done`}
+          Workout · {doneCount} of {workout.exercises.length} done
         </h2>
         {workout.blocks.map((block, b) => {
           const superset = block.exercises.length > 1
@@ -125,8 +124,7 @@ export default function WorkoutScreen() {
                     key={item.index}
                     workout={workout}
                     item={item}
-                    exercise={exerciseOf(item)}
-                    done={isDone(item)}
+                    done={doneIds.has(item.exerciseId)}
                   />
                 ))}
               </div>

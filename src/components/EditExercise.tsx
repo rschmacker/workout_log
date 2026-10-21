@@ -27,7 +27,7 @@ export default function EditExercise({ exercise, onRenamed, onDeleted }: Props) 
     if (error) {
       setError(
         error.code === '23505'
-          ? 'You already have an exercise with this name.'
+          ? 'An exercise with this name already exists (exercises are shared, so maybe a friend created it).'
           : error.message,
       )
       return

@@ -37,10 +37,10 @@ export default function AddExercise() {
       .from('exercises')
       .insert({ name: name.trim(), category })
     if (error) {
-      // 23505 = unique constraint: you already have an exercise with this name
+      // 23505 = unique constraint: an exercise with this name already exists (also a friend's)
       setError(
         error.code === '23505'
-          ? 'You already have an exercise with this name.'
+          ? 'An exercise with this name already exists (exercises are shared, so maybe a friend created it).'
           : error.message,
       )
       setBusy(false)

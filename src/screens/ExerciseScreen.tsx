@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import BackLink from '../components/BackLink'
 import { useGoBack } from '../useGoBack'
+import { useUserId } from '../useUserId'
 import Calendar from '../components/Calendar'
 import EditExercise from '../components/EditExercise'
 import NoteField from '../components/NoteField'
@@ -121,7 +122,7 @@ function ExerciseScreen() {
   const [fromWorkout, setFromWorkout] = useState<FromWorkout | null>(null)
 
   const [exercise, setExercise] = useState<Exercise | null>(null)
-  const [myUserId, setMyUserId] = useState<string | null>(null)
+  const myUserId = useUserId()
   const [sets, setSets] = useState<WorkoutSet[] | null>(null) // all sets of this exercise
   // All your notes (all exercises), for this exercise's notes and the suggestions
   const [entries, setEntries] = useState<ExerciseEntry[] | null>(null)
@@ -139,7 +140,6 @@ function ExerciseScreen() {
   // When the screen opens: load the exercise, all its sets, all your notes and,
   // if opened from a workout, that workout
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setMyUserId(data.session?.user.id ?? null))
     supabase
       .from('exercises')
       .select('id, user_id, name, category')

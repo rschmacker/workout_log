@@ -1,5 +1,6 @@
 import type { Category } from './exercises'
 import { supabase } from './supabase'
+import { cleanLines, draftToRows, type Draft } from './workoutDraft'
 
 // Saved workouts, stored in Supabase (tables workouts and workout_exercises) and
 // shared between all users. This file loads them into the shape the screens use.
@@ -37,6 +38,7 @@ export type Workout = {
   id: string
   userId: string | null // creator; null = built-in (read-only)
   name: string // given, or made from the main exercises
+  givenName: string // as stored: '' = named after the main exercises
   category: WorkoutCategory
   warmup: string[] // text lines
   finisher: string[] // text lines
@@ -112,6 +114,7 @@ function toWorkout(row: WorkoutRow): Workout {
     userId: row.user_id,
     // Without a name: the main exercises, e.g. "BB Bench Press + Pull-Up"
     name: row.name || exercises.map((e) => e.exercise).join(' + '),
+    givenName: row.name,
     category: row.category,
     warmup: lines(row.warmup),
     finisher: lines(row.finisher),
@@ -138,6 +141,35 @@ export async function fetchWorkout(id: string): Promise<Workout | null> {
   const { data, error } = await supabase.from('workouts').select(SELECT).eq('id', id).maybeSingle()
   if (error) throw error
   return data ? toWorkout(data as unknown as WorkoutRow) : null
+}
+
+// Saves a workout from the builder, all or nothing (database function save_workout).
+// id null = new workout. expectedUpdatedAt: when the workout was last changed at the
+// time it was opened; if someone saved it since, the error message starts with
+// "WORKOUT_CHANGED". Pass null to overwrite anyway. Returns the workout's id.
+export async function saveWorkout(
+  id: string | null,
+  draft: Draft,
+  expectedUpdatedAt: string | null,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('save_workout', {
+    p_id: id,
+    p_name: draft.name.trim(),
+    p_category: draft.category,
+    p_warmup: cleanLines(draft.warmup),
+    p_finisher: cleanLines(draft.finisher),
+    p_exercises: draftToRows(draft),
+    p_expected_updated_at: expectedUpdatedAt,
+  })
+  if (error) throw error
+  return data as string
+}
+
+// Deletes a workout (only its creator can; the database checks this)
+export async function deleteWorkout(id: string): Promise<void> {
+  const { data, error } = await supabase.from('workouts').delete().eq('id', id).select('id')
+  if (error) throw error
+  if (data.length === 0) throw new Error('Only the person who created this workout can delete it.')
 }
 
 export function workoutTypeOf(workout: Workout) {

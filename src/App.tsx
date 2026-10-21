@@ -6,6 +6,7 @@ import ExerciseScreen from './screens/ExerciseScreen'
 import History from './screens/History'
 import Home from './screens/Home'
 import Settings from './screens/Settings'
+import WorkoutBuilder from './screens/WorkoutBuilder'
 import WorkoutList from './screens/WorkoutList'
 import WorkoutScreen from './screens/WorkoutScreen'
 import { useSession } from './useSession'
@@ -39,7 +40,10 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/exercises/:category" element={<ExerciseList />} />
       <Route path="/workouts/:type" element={<WorkoutList />} />
+      <Route path="/workouts/:type/new" element={<WorkoutBuilder mode="create" />} />
       <Route path="/workout/:id" element={<WorkoutScreen />} />
+      <Route path="/workout/:id/edit" element={<WorkoutBuilder mode="edit" />} />
+      <Route path="/workout/:id/duplicate" element={<WorkoutBuilder mode="duplicate" />} />
       <Route path="/add-exercise" element={<AddExercise />} />
       <Route path="/exercise/:id" element={<ExerciseScreen />} />
       <Route path="/exercise/:id/history" element={<History />} />

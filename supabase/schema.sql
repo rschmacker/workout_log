@@ -294,6 +294,73 @@ create trigger check_exercise_delete before delete on public.exercises
   for each row execute function public.check_exercise_delete();
 
 -- ---------------------------------------------------------------------------
+-- save_workout: saves a workout and its main exercises in one go (all or nothing);
+-- refuses with 'WORKOUT_CHANGED' if someone else saved it after it was opened
+-- (added 2026-10-21, also in migrations/2026-10-21_save_workout_function.sql)
+-- ---------------------------------------------------------------------------
+
+create or replace function public.save_workout(
+  p_id uuid,
+  p_name text,
+  p_category text,
+  p_warmup text,
+  p_finisher text,
+  p_exercises jsonb,
+  p_expected_updated_at timestamptz default null
+) returns uuid
+language plpgsql security invoker set search_path = '' as $$
+declare
+  v_workout_id uuid := p_id;
+begin
+  if jsonb_typeof(p_exercises) <> 'array' or jsonb_array_length(p_exercises) = 0 then
+    raise exception 'A workout needs at least one main exercise.';
+  end if;
+
+  if v_workout_id is null then
+    insert into public.workouts (name, category, warmup, finisher)
+    values (p_name, p_category, p_warmup, p_finisher)
+    returning id into v_workout_id;
+  else
+    update public.workouts
+    set name = p_name, category = p_category, warmup = p_warmup, finisher = p_finisher
+    where id = v_workout_id
+      and (p_expected_updated_at is null or updated_at = p_expected_updated_at);
+
+    if not found then
+      if not exists (select 1 from public.workouts where id = v_workout_id) then
+        raise exception 'This workout doesn''t exist anymore (maybe it was deleted).';
+      elsif exists (select 1 from public.workouts where id = v_workout_id and user_id is null) then
+        raise exception 'Built-in workouts can''t be changed. Duplicate it instead.';
+      else
+        raise exception 'WORKOUT_CHANGED: someone else saved this workout after you opened it.';
+      end if;
+    end if;
+
+    delete from public.workout_exercises where workout_id = v_workout_id;
+  end if;
+
+  insert into public.workout_exercises
+    (workout_id, position, exercise_id, sets, reps_hint, weight_hint, note,
+     superset_with_next, title, duration, cues)
+  select v_workout_id, e.position, e.exercise_id, e.sets,
+         coalesce(e.reps_hint, ''), coalesce(e.weight_hint, ''), coalesce(e.note, ''),
+         coalesce(e.superset_with_next, false), coalesce(e.title, ''),
+         coalesce(e.duration, ''), coalesce(e.cues, '')
+  from jsonb_to_recordset(p_exercises) as e(
+    position int, exercise_id uuid, sets int, reps_hint text, weight_hint text, note text,
+    superset_with_next boolean, title text, duration text, cues text
+  );
+
+  return v_workout_id;
+end $$;
+
+-- Only signed-in users may call it (anonymous visitors can't)
+revoke execute on function public.save_workout(uuid, text, text, text, text, jsonb, timestamptz)
+  from public, anon;
+grant execute on function public.save_workout(uuid, text, text, text, text, jsonb, timestamptz)
+  to authenticated;
+
+-- ---------------------------------------------------------------------------
 -- Built-in exercises (user_id = null)
 -- ---------------------------------------------------------------------------
 

@@ -89,7 +89,18 @@ export default function WorkoutScreen() {
   return (
     <main className="page">
       <BackLink parent={`/workouts/${type.slug}`} />
-      <h1>{workout.name}</h1>
+      <header className="topbar">
+        <h1>{workout.name}</h1>
+        <div className="topbar-actions">
+          {/* Everyone can edit; built-in workouts can only be duplicated */}
+          <Link
+            className="pill-link"
+            to={`/workout/${workout.id}/${workout.userId === null ? 'duplicate' : 'edit'}`}
+          >
+            {workout.userId === null ? 'Duplicate' : 'Edit'}
+          </Link>
+        </div>
+      </header>
       <p className="muted workout-subtitle">
         {type.label} · {formatDay(today)}
       </p>

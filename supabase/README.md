@@ -10,6 +10,18 @@
 
 All SQL is run in Supabase under **SQL Editor → New query → paste → Run**.
 
+## Shared with the kleinkind-essen app
+
+This Supabase project is also used by the **kleinkind-essen** app. Both apps share the
+same accounts (Authentication → Users), the same `public` database schema and the same
+login settings (Site URL, Redirect URLs, "Allow new users to sign up"). So:
+
+- The invite-only list below applies to **both** apps: a new kleinkind-essen user also
+  needs their email on `allowed_emails`.
+- "Shared with all signed-in users" also includes kleinkind-essen accounts (they could
+  read workouts, exercises and display names - never anyone's sets or notes).
+- New tables and functions need names that can't clash with the other app.
+
 ## Who sees what
 
 - **Shared** between all signed-in users: workouts, all exercises (built-in and custom),

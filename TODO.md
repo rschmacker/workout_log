@@ -99,11 +99,11 @@ Done in steps: **7a** database + import (done 2026-10-21), **7b** builder screen
 - [x] Show the superset description as a small label on the exercise in the workout screen — supersets are shown as a group with a "Superset · N rounds" label, title and cues (decided in item 4)
 - [x] The workout screen and logging stay as in item 4: tapping a main exercise opens the entry screen with only the prescribed number of sets
 - [x] Validation: at least one main exercise; maximum 5 sets; clear error messages
-- [ ] Users: me and 2 friends (3 in total), invite-only. Keep public sign-ups disabled; tell me step by step how to add my friends in Supabase (invite by email) and which login method works best for them (email magic link, or GitHub if they have an account). Make sure strangers cannot register — both friends already have accounts (GitHub); sign-ups are off again
-- [ ] Sharing: workouts and custom exercises are visible to all three users. Logged sets, Besonderheiten and history are private per user (verify with RLS policies) — RLS in place since 7a, verification in 7d
+- [ ] Users: me and 2 friends (3 in total), invite-only. Keep public sign-ups disabled; tell me step by step how to add my friends in Supabase (invite by email) and which login method works best for them (email magic link, or GitHub if they have an account). Make sure strangers cannot register — both friends already have accounts (GitHub); sign-ups are off again; invite-only lock (allowed_emails + database rule) added 2026-10-25, how to add a person in supabase/README.md. Open: a 4th account appeared (allowlist has 4 addresses) - to be identified
+- [x] Sharing: workouts and custom exercises are visible to all three users. Logged sets, Besonderheiten and history are private per user (verify with RLS policies) — verified 2026-10-25 with supabase/tests/privacy_and_sharing_test.sql (all 16 checks PASS)
 - [x] Add a small `profiles` table with a display name per user (editable in a settings screen). Show "by <name>" on each workout in the lists, and add a filter "All / Mine" — done; own workouts show "by you"; the filter choice is remembered on the phone
-- [ ] Doing someone else's workout logs the sets to my own data only
-- [ ] Test with a second account that sharing and privacy work as described, and tell me the result
+- [x] Doing someone else's workout logs the sets to my own data only — verified (test 7)
+- [x] Test with a second account that sharing and privacy work as described, and tell me the result — done as an SQL test acting as me and a friend, every change undone; all 16 checks PASS (2026-10-25)
 
 ## Decisions
 - Variations (e.g. wide grip) are only saved as Besonderheit in the history, no extra chips or cards on the Home screen

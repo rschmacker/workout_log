@@ -1,6 +1,6 @@
 # Workout Log (CrossFit / Tone & Build)
 
-Personal web app (PWA) to log strength sets per exercise and date. Used mainly on an iPhone in Safari, added to the Home Screen. Single user.
+Personal web app (PWA) to log strength sets per exercise and date. Used mainly on an iPhone in Safari, added to the Home Screen. Used by me and two friends (invite-only, since 2026-10): workouts, exercises and display names are shared; logged sets, notes and history stay private per user. See `supabase/README.md`.
 
 ## Stack
 - Vite + React + TypeScript

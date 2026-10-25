@@ -4,7 +4,9 @@ import BackLink from '../components/BackLink'
 import ExercisePicker from '../components/ExercisePicker'
 import NoteField from '../components/NoteField'
 import { fetchEntries, type ExerciseEntry } from '../entries'
+import { fetchProfiles, formatDateTime, nameOf } from '../profiles'
 import { useGoBack } from '../useGoBack'
+import { useUserId } from '../useUserId'
 import {
   LIMITS,
   autoName,
@@ -168,6 +170,7 @@ export default function WorkoutBuilder({ mode }: { mode: Mode }) {
   const { id = '', type: typeSlug } = useParams()
   const navigate = useNavigate()
   const goBack = useGoBack()
+  const myUserId = useUserId()
 
   // A new workout starts empty, of the type it was created from
   const [initial] = useState(() => {
@@ -182,7 +185,7 @@ export default function WorkoutBuilder({ mode }: { mode: Mode }) {
   const [picking, setPicking] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [conflict, setConflict] = useState(false)
+  const [conflict, setConflict] = useState<string | null>(null) // who saved meanwhile
   const [loadError, setLoadError] = useState<string | null>(null)
   const scrollBeforePicking = useRef(0)
   const leaving = useRef(false) // set right before leaving after a successful save
@@ -286,7 +289,7 @@ export default function WorkoutBuilder({ mode }: { mode: Mode }) {
     }
     setBusy(true)
     setError(null)
-    setConflict(false)
+    setConflict(null)
     try {
       const editing = mode === 'edit' && source
       const savedId = await saveWorkout(
@@ -300,9 +303,24 @@ export default function WorkoutBuilder({ mode }: { mode: Mode }) {
       else navigate(`/workout/${savedId}`, { replace: true })
     } catch (err) {
       const message = (err as Error).message
-      if (message.startsWith('WORKOUT_CHANGED')) setConflict(true)
+      if (message.startsWith('WORKOUT_CHANGED')) setConflict(await whoChangedIt())
       else setError(message)
       setBusy(false)
+    }
+  }
+
+  // "Max saved this workout on 21 Oct 2026, 09:20, after you opened it."
+  async function whoChangedIt(): Promise<string> {
+    try {
+      const [latest, profiles] = await Promise.all([fetchWorkout(id), fetchProfiles()])
+      if (!latest) return 'Someone deleted this workout after you opened it.'
+      const by = nameOf(profiles, latest.updatedBy, myUserId)
+      const when = formatDateTime(latest.updatedAt)
+      return by === 'you'
+        ? `You saved this workout on ${when} (in another tab or on another device), after you opened it here.`
+        : `${by[0].toUpperCase()}${by.slice(1)} saved this workout on ${when}, after you opened it.`
+    } catch {
+      return 'Someone else saved this workout after you opened it.'
     }
   }
 
@@ -318,7 +336,7 @@ export default function WorkoutBuilder({ mode }: { mode: Mode }) {
     setSource(workout)
     setDraft(loaded)
     setSavedJson(JSON.stringify(loaded))
-    setConflict(false)
+    setConflict(null)
   }
 
   if (picking) {
@@ -478,8 +496,7 @@ export default function WorkoutBuilder({ mode }: { mode: Mode }) {
           {conflict && (
             <div className="panel conflict">
               <p>
-                <strong>Someone else saved this workout after you opened it.</strong> Your changes
-                are not saved yet.
+                <strong>{conflict}</strong> Your changes are not saved yet.
               </p>
               <button type="button" className="button secondary" onClick={loadTheirVersion}>
                 Load their version

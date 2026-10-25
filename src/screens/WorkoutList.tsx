@@ -1,8 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import BackLink from '../components/BackLink'
+import { fetchProfiles, nameOf } from '../profiles'
 import { useUserId } from '../useUserId'
 import { WORKOUT_TYPES, deleteWorkout, fetchWorkouts, type Workout } from '../workouts'
+
+// The All / Mine filter is remembered on this phone (if the browser allows it)
+const FILTER_KEY = 'workout-list-filter'
+function savedFilter(): 'all' | 'mine' {
+  try {
+    return localStorage.getItem(FILTER_KEY) === 'mine' ? 'mine' : 'all'
+  } catch {
+    return 'all'
+  }
+}
 
 // "4 exercises · 2 supersets · warmup · finisher"
 function workoutSummary(workout: Workout): string {
@@ -24,6 +35,8 @@ export default function WorkoutList() {
   const type = WORKOUT_TYPES.find((t) => t.slug === slug)
   const myUserId = useUserId()
   const [workouts, setWorkouts] = useState<Workout[] | null>(null)
+  const [profiles, setProfiles] = useState<Map<string, string> | null>(null)
+  const [filter, setFilter] = useState<'all' | 'mine'>(savedFilter)
   const [error, setError] = useState<string | null>(null)
   const [menuFor, setMenuFor] = useState<string | null>(null) // workout whose ⋯ menu is open
 
@@ -32,7 +45,21 @@ export default function WorkoutList() {
     fetchWorkouts(type.category)
       .then(setWorkouts)
       .catch((e: Error) => setError(e.message))
+    fetchProfiles()
+      .then(setProfiles)
+      .catch(() => {}) // without names the list still works ("by someone")
   }, [type])
+
+  function chooseFilter(value: 'all' | 'mine') {
+    setFilter(value)
+    try {
+      localStorage.setItem(FILTER_KEY, value)
+    } catch {
+      // Storage not available: the choice just isn't remembered
+    }
+  }
+
+  const shown = workouts?.filter((w) => filter === 'all' || w.userId === myUserId)
 
   async function remove(workout: Workout) {
     const ok = window.confirm(
@@ -62,6 +89,20 @@ export default function WorkoutList() {
       <BackLink parent="/" />
       <h1>{type.label}</h1>
 
+      <div className="choice-grid filter-choice" role="group" aria-label="Show workouts">
+        {(['all', 'mine'] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            className="choice"
+            aria-pressed={filter === value}
+            onClick={() => chooseFilter(value)}
+          >
+            {value === 'all' ? 'All' : 'Mine'}
+          </button>
+        ))}
+      </div>
+
       <div className="exercise-list">
         <Link className="card card-add" to={`/workouts/${type.slug}/new`}>
           + Create workout
@@ -69,11 +110,15 @@ export default function WorkoutList() {
 
         {error && <p className="error">{error}</p>}
         {!workouts && !error && <p className="muted">Loading…</p>}
-        {workouts?.length === 0 && (
-          <p className="muted">No {type.label.toLowerCase()} workouts yet.</p>
+        {shown?.length === 0 && (
+          <p className="muted">
+            {filter === 'mine'
+              ? `You haven't created any ${type.label.toLowerCase()} workouts yet.`
+              : `No ${type.label.toLowerCase()} workouts yet.`}
+          </p>
         )}
 
-        {workouts?.map((workout) => {
+        {shown?.map((workout) => {
           const builtIn = workout.userId === null
           const mine = workout.userId !== null && workout.userId === myUserId
           const menuOpen = menuFor === workout.id
@@ -82,7 +127,9 @@ export default function WorkoutList() {
               <div className="card-with-menu">
                 <Link className="card exercise-item" to={`/workout/${workout.id}`}>
                   {workout.name}
-                  <span className="exercise-last">{workoutSummary(workout)}</span>
+                  <span className="exercise-last">
+                    by {nameOf(profiles, workout.userId, myUserId)} · {workoutSummary(workout)}
+                  </span>
                 </Link>
                 <button
                   type="button"

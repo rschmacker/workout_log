@@ -3,7 +3,9 @@ import { Link, useParams } from 'react-router'
 import BackLink from '../components/BackLink'
 import PlainList from '../components/PlainList'
 import { formatDay, todayISO } from '../dates'
+import { fetchProfiles, formatDateTime, nameOf } from '../profiles'
 import { supabase } from '../supabase'
+import { useUserId } from '../useUserId'
 import {
   blockHeading,
   fetchWorkout,
@@ -38,9 +40,14 @@ export default function WorkoutScreen() {
   // undefined = loading, null = doesn't exist
   const [workout, setWorkout] = useState<Workout | null | undefined>(undefined)
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
+  const [profiles, setProfiles] = useState<Map<string, string> | null>(null)
+  const myUserId = useUserId()
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    fetchProfiles()
+      .then(setProfiles)
+      .catch(() => {}) // without names it shows "by someone"
     fetchWorkout(id)
       .then(async (loaded) => {
         setWorkout(loaded)
@@ -103,6 +110,11 @@ export default function WorkoutScreen() {
       </header>
       <p className="muted workout-subtitle">
         {type.label} · {formatDay(today)}
+      </p>
+      <p className="muted workout-subtitle small">
+        by {nameOf(profiles, workout.userId, myUserId)}
+        {workout.updatedBy &&
+          ` · last edited by ${nameOf(profiles, workout.updatedBy, myUserId)}, ${formatDateTime(workout.updatedAt)}`}
       </p>
 
       {workout.warmup.length > 0 && (

@@ -370,6 +370,17 @@ input:focus {
   font-weight: 400;
 }
 
+/* All / Mine filter above the workout list */
+.choice-grid.filter-choice {
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 0.75rem;
+}
+
+/* "by Max · last edited by you, 21 Oct 2026, 09:20" */
+.workout-subtitle.small {
+  font-size: 0.875rem;
+}
+
 /* ---------- Workout list: card with a ⋯ menu ---------- */
 
 .card-with-menu {

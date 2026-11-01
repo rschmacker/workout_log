@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { Link, useParams } from 'react-router'
 import BackLink from '../components/BackLink'
 import PlainList from '../components/PlainList'
 import { formatDay, todayISO } from '../dates'
-import { fetchProfiles, formatDateTime, nameOf } from '../profiles'
-import { supabase } from '../supabase'
+import { formatDateTime, nameOf, useProfiles } from '../profiles'
+import { useMySets } from '../sets'
 import { useUserId } from '../useUserId'
 import {
   blockHeading,
-  fetchWorkout,
   prescription,
+  useWorkouts,
   workoutTypeOf,
   type MainExercise,
   type Workout,
@@ -37,34 +37,19 @@ function ExerciseCard({ workout, item, done }: { workout: Workout; item: MainExe
 export default function WorkoutScreen() {
   const { id = '' } = useParams()
   const today = todayISO()
-  // undefined = loading, null = doesn't exist
-  const [workout, setWorkout] = useState<Workout | null | undefined>(undefined)
-  const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
-  const [profiles, setProfiles] = useState<Map<string, string> | null>(null)
+  const { data: workouts, refreshing, error } = useWorkouts()
+  const profiles = useProfiles() // without names it shows "by someone"
+  const { data: sets } = useMySets()
   const myUserId = useUserId()
-  const [error, setError] = useState<string | null>(null)
+  const workout = workouts?.find((w) => w.id === id)
 
-  useEffect(() => {
-    fetchProfiles()
-      .then(setProfiles)
-      .catch(() => {}) // without names it shows "by someone"
-    fetchWorkout(id)
-      .then(async (loaded) => {
-        setWorkout(loaded)
-        if (!loaded) return
-        // Which of its exercises have sets logged today (only your own sets are visible)
-        const { data, error } = await supabase
-          .from('workout_sets')
-          .select('exercise_id')
-          .eq('date', today)
-          .in('exercise_id', loaded.exercises.map((e) => e.exerciseId))
-        if (error) throw error
-        setDoneIds(new Set(data.map((row) => row.exercise_id as string)))
-      })
-      .catch((e: Error) => setError(e.message))
-  }, [id, today])
+  // Exercises with sets logged today
+  const doneIds = useMemo(
+    () => new Set((sets ?? []).filter((s) => s.date === today).map((s) => s.exercise_id)),
+    [sets, today],
+  )
 
-  if (error) {
+  if (!workouts && error) {
     return (
       <main className="page">
         <BackLink parent="/" />
@@ -73,7 +58,8 @@ export default function WorkoutScreen() {
     )
   }
 
-  if (workout === undefined) {
+  // Not on this phone yet (e.g. just created by a friend): wait for Supabase's answer
+  if (!workout && (!workouts || refreshing)) {
     return (
       <main className="page">
         <p className="muted">Loading…</p>
@@ -81,7 +67,7 @@ export default function WorkoutScreen() {
     )
   }
 
-  if (workout === null) {
+  if (!workout) {
     return (
       <main className="page">
         <BackLink parent="/" />

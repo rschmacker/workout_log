@@ -1,6 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { CATEGORIES, categoryLabel, type Category, type Exercise } from '../exercises'
-import { supabase } from '../supabase'
+import { useState, type FormEvent } from 'react'
+import {
+  CATEGORIES,
+  addExercise,
+  categoryLabel,
+  useExercises,
+  type Category,
+  type Exercise,
+} from '../exercises'
 import BodyMap from './BodyMap'
 
 type Props = {
@@ -13,30 +19,17 @@ type Props = {
 // first the body part, then its exercises (or a new custom exercise).
 export default function ExercisePicker({ alreadyUsed, onPick, onCancel }: Props) {
   const [category, setCategory] = useState<Category | null>(null)
-  const [exercises, setExercises] = useState<Exercise[] | null>(null)
+  const { data: allExercises, error: loadError } = useExercises()
   const [newName, setNewName] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null) // adding failed
+  const exercises = allExercises?.filter((e) => e.category === category)
 
   function chooseCategory(c: Category | null) {
     setCategory(c)
-    setExercises(null)
     setError(null)
     setNewName('')
   }
-
-  useEffect(() => {
-    if (!category) return
-    supabase
-      .from('exercises')
-      .select('id, user_id, name, category')
-      .eq('category', category)
-      .order('name')
-      .then(({ data, error }) => {
-        if (error) setError(error.message)
-        else setExercises(data as Exercise[])
-      })
-  }, [category])
 
   // A new custom exercise in this body part; it's added to the workout right away
   async function addCustom(e: FormEvent) {
@@ -44,21 +37,18 @@ export default function ExercisePicker({ alreadyUsed, onPick, onCancel }: Props)
     if (!category) return
     setBusy(true)
     setError(null)
-    const { data, error } = await supabase
-      .from('exercises')
-      .insert({ name: newName.trim(), category })
-      .select('id, user_id, name, category')
-      .single()
-    setBusy(false)
-    if (error) {
+    try {
+      const exercise = await addExercise(newName, category)
+      setBusy(false)
+      onPick(exercise)
+    } catch (err) {
+      setBusy(false)
       setError(
-        error.code === '23505'
+        (err as { code?: string }).code === '23505'
           ? 'An exercise with this name already exists (maybe in another body part).'
-          : error.message,
+          : (err as Error).message,
       )
-      return
     }
-    onPick(data as Exercise)
   }
 
   if (!category) {
@@ -87,7 +77,8 @@ export default function ExercisePicker({ alreadyUsed, onPick, onCancel }: Props)
       </button>
       <h1>{categoryLabel(category)}</h1>
 
-      {!exercises && !error && <p className="muted">Loading…</p>}
+      {!allExercises && loadError && <p className="error">{loadError}</p>}
+      {!allExercises && !loadError && <p className="muted">Loading…</p>}
       <div className="exercise-list">
         {exercises?.map((exercise) => {
           const used = alreadyUsed.has(exercise.id)

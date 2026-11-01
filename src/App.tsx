@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import { Link, Route, Routes } from 'react-router'
+import { refreshAllIfOld } from './localData'
 import Login from './Login'
 import AddExercise from './screens/AddExercise'
 import ExerciseList from './screens/ExerciseList'
@@ -24,6 +26,13 @@ function NotFound() {
 
 export default function App() {
   const session = useSession()
+  const userId = session?.user.id
+
+  // Right after the app starts: update all copies on this phone in the background,
+  // so the screens are up to date when you open them
+  useEffect(() => {
+    if (userId) refreshAllIfOld()
+  }, [userId])
 
   if (session === undefined) {
     return (

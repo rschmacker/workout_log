@@ -4,12 +4,12 @@ import BackLink from '../components/BackLink'
 import { useGoBack } from '../useGoBack'
 import {
   CATEGORIES,
+  addExercise,
   categoryFromSlug,
   categoryLabel,
   categorySlug,
   type Category,
 } from '../exercises'
-import { supabase } from '../supabase'
 
 export default function AddExercise() {
   const navigate = useNavigate()
@@ -32,16 +32,14 @@ export default function AddExercise() {
     }
     setBusy(true)
     setError(null)
-    // user_id is filled in by the database (default auth.uid())
-    const { error } = await supabase
-      .from('exercises')
-      .insert({ name: name.trim(), category })
-    if (error) {
+    try {
+      await addExercise(name, category)
+    } catch (err) {
       // 23505 = unique constraint: an exercise with this name already exists (also a friend's)
       setError(
-        error.code === '23505'
+        (err as { code?: string }).code === '23505'
           ? 'An exercise with this name already exists (exercises are shared, so maybe a friend created it).'
-          : error.message,
+          : (err as Error).message,
       )
       setBusy(false)
       return

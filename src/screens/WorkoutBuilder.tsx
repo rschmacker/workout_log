@@ -3,8 +3,9 @@ import { useBlocker, useNavigate, useParams } from 'react-router'
 import BackLink from '../components/BackLink'
 import ExercisePicker from '../components/ExercisePicker'
 import NoteField from '../components/NoteField'
-import { fetchEntries, type ExerciseEntry } from '../entries'
-import { fetchProfiles, formatDateTime, nameOf } from '../profiles'
+import { useMyEntries, type ExerciseEntry } from '../entries'
+import { loadingError } from '../localData'
+import { formatDateTime, nameOf, useProfiles } from '../profiles'
 import { useGoBack } from '../useGoBack'
 import { useUserId } from '../useUserId'
 import {
@@ -19,7 +20,7 @@ import {
   type Draft,
   type DraftExercise,
 } from '../workoutDraft'
-import { WORKOUT_TYPES, fetchWorkout, saveWorkout, type Workout } from '../workouts'
+import { WORKOUT_TYPES, fetchWorkout, saveWorkout, useWorkouts, type Workout } from '../workouts'
 
 type Mode = 'create' | 'edit' | 'duplicate'
 
@@ -181,36 +182,38 @@ export default function WorkoutBuilder({ mode }: { mode: Mode }) {
   const [draft, setDraft] = useState<Draft | null>(initial)
   const [savedJson, setSavedJson] = useState(() => (initial ? JSON.stringify(initial) : ''))
   const [source, setSource] = useState<Workout | null>(null) // the workout being edited/copied
-  const [entries, setEntries] = useState<ExerciseEntry[]>([]) // your notes, for suggestions
+  const entries = useMyEntries().data ?? [] // your notes, for suggestions
+  const profiles = useProfiles()
+  const workoutsState = useWorkouts()
   const [picking, setPicking] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conflict, setConflict] = useState<string | null>(null) // who saved meanwhile
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [gone, setGone] = useState(false) // deleted by someone while you were editing
   const scrollBeforePicking = useRef(0)
   const leaving = useRef(false) // set right before leaving after a successful save
 
   const dirty = draft !== null && JSON.stringify(draft) !== savedJson
 
-  useEffect(() => {
-    fetchEntries()
-      .then(setEntries)
-      .catch(() => {}) // only used for suggestions
-    if (mode === 'create') return
-    fetchWorkout(id)
-      .then((workout) => {
-        if (!workout) {
-          setLoadError("This workout doesn't exist (anymore).")
-          return
-        }
-        const loaded = draftFromWorkout(workout)
-        if (mode === 'duplicate') loaded.name = `${workout.name} (copy)`
-        setSource(workout)
-        setDraft(loaded)
-        setSavedJson(JSON.stringify(loaded))
-      })
-      .catch((e: Error) => setLoadError(e.message))
-  }, [mode, id])
+  // Edit / duplicate: start from the workout as soon as it's there (normally right away,
+  // from the copy on this phone). Done while rendering, so the form shows without a flash.
+  const original = mode === 'create' ? null : workoutsState.data?.find((w) => w.id === id)
+  if (original && !source) {
+    const loaded = draftFromWorkout(original)
+    if (mode === 'duplicate') loaded.name = `${original.name} (copy)`
+    setSource(original)
+    setDraft(loaded)
+    setSavedJson(JSON.stringify(loaded))
+  }
+  let loadError: string | null = null
+  if (gone) {
+    loadError = "This workout doesn't exist anymore (maybe it was deleted)."
+  } else if (mode !== 'create' && !source && !original) {
+    loadError =
+      workoutsState.data && !workoutsState.refreshing
+        ? "This workout doesn't exist (anymore)."
+        : loadingError(workoutsState)
+  }
 
   // Warn before leaving with unsaved changes (Back, Cancel, the phone's back gesture …)
   const blocker = useBlocker(
@@ -312,7 +315,7 @@ export default function WorkoutBuilder({ mode }: { mode: Mode }) {
   // "Max saved this workout on 21 Oct 2026, 09:20, after you opened it."
   async function whoChangedIt(): Promise<string> {
     try {
-      const [latest, profiles] = await Promise.all([fetchWorkout(id), fetchProfiles()])
+      const latest = await fetchWorkout(id)
       if (!latest) return 'Someone deleted this workout after you opened it.'
       const by = nameOf(profiles, latest.updatedBy, myUserId)
       const when = formatDateTime(latest.updatedAt)
@@ -329,7 +332,7 @@ export default function WorkoutBuilder({ mode }: { mode: Mode }) {
     if (!window.confirm('Load their version? Your changes will be lost.')) return
     const workout = await fetchWorkout(id)
     if (!workout) {
-      setLoadError("This workout doesn't exist anymore (maybe it was deleted).")
+      setGone(true)
       return
     }
     const loaded = draftFromWorkout(workout)

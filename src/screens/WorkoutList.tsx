@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import BackLink from '../components/BackLink'
-import { fetchProfiles, nameOf } from '../profiles'
+import { nameOf, useProfiles } from '../profiles'
 import { useUserId } from '../useUserId'
-import { WORKOUT_TYPES, deleteWorkout, fetchWorkouts, type Workout } from '../workouts'
+import { WORKOUT_TYPES, deleteWorkout, useWorkouts, type Workout } from '../workouts'
 
 // The All / Mine filter is remembered on this phone (if the browser allows it)
 const FILTER_KEY = 'workout-list-filter'
@@ -34,21 +34,12 @@ export default function WorkoutList() {
   const { type: slug } = useParams()
   const type = WORKOUT_TYPES.find((t) => t.slug === slug)
   const myUserId = useUserId()
-  const [workouts, setWorkouts] = useState<Workout[] | null>(null)
-  const [profiles, setProfiles] = useState<Map<string, string> | null>(null)
+  const { data: allWorkouts, error: loadError } = useWorkouts()
+  const profiles = useProfiles() // without names the list still works ("by someone")
   const [filter, setFilter] = useState<'all' | 'mine'>(savedFilter)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null) // deleting failed
   const [menuFor, setMenuFor] = useState<string | null>(null) // workout whose ⋯ menu is open
-
-  useEffect(() => {
-    if (!type) return
-    fetchWorkouts(type.category)
-      .then(setWorkouts)
-      .catch((e: Error) => setError(e.message))
-    fetchProfiles()
-      .then(setProfiles)
-      .catch(() => {}) // without names the list still works ("by someone")
-  }, [type])
+  const workouts = allWorkouts?.filter((w) => w.category === type?.category)
 
   function chooseFilter(value: 'all' | 'mine') {
     setFilter(value)
@@ -68,7 +59,6 @@ export default function WorkoutList() {
     if (!ok) return
     try {
       await deleteWorkout(workout.id)
-      setWorkouts((list) => list?.filter((w) => w.id !== workout.id) ?? null)
       setMenuFor(null)
     } catch (e) {
       setError((e as Error).message)
@@ -109,7 +99,8 @@ export default function WorkoutList() {
         </Link>
 
         {error && <p className="error">{error}</p>}
-        {!workouts && !error && <p className="muted">Loading…</p>}
+        {!workouts && loadError && <p className="error">{loadError}</p>}
+        {!workouts && !loadError && <p className="muted">Loading…</p>}
         {shown?.length === 0 && (
           <p className="muted">
             {filter === 'mine'

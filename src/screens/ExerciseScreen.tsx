@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import BackLink from '../components/BackLink'
 import { useGoBack } from '../useGoBack'
@@ -9,24 +9,27 @@ import NoteField from '../components/NoteField'
 import PersonalBests from '../components/PersonalBests'
 import { formatDay, todayISO } from '../dates'
 import {
-  fetchEntries,
   noteFor,
   saveEntry,
+  useMyEntries,
   workoutFor,
   type ExerciseEntry,
 } from '../entries'
-import { categorySlug, type Exercise } from '../exercises'
+import { categorySlug, useExercises } from '../exercises'
+import { loadingError } from '../localData'
 import {
   MAX_SETS,
   bestByVolume,
   bestByWeight,
+  deleteDaySets,
   describeSet,
-  fetchAllSets,
   formatVolume,
   formatWeight,
   parseReps,
   parseWeight,
+  saveDaySets,
   shortSet,
+  useMySets,
   volume,
   type WorkoutSet,
 } from '../sets'
@@ -38,11 +41,10 @@ import {
   updateRows,
   type RowInput,
 } from '../setRows'
-import { supabase } from '../supabase'
 import {
   blockOf,
-  fetchWorkout,
   prescription,
+  useWorkouts,
   type Block,
   type MainExercise,
   type Workout,
@@ -116,67 +118,54 @@ function ExerciseScreen() {
     return fromUrl && /^\d{4}-\d{2}-\d{2}$/.test(fromUrl) ? fromUrl : todayISO()
   })
 
-  // Opened from a saved workout (?workout=…&item=…): loaded together with the sets
+  // Opened from a saved workout (?workout=…&item=…)
   const [workoutId] = useState(() => searchParams.get('workout'))
   const [itemIndex] = useState(() => Number(searchParams.get('item')))
-  const [fromWorkout, setFromWorkout] = useState<FromWorkout | null>(null)
 
-  const [exercise, setExercise] = useState<Exercise | null>(null)
+  // Everything comes from the copy on this phone (see localData.ts)
+  const exercisesState = useExercises()
+  const setsState = useMySets()
+  const entriesState = useMyEntries()
+  const workoutsState = useWorkouts()
   const myUserId = useUserId()
-  const [sets, setSets] = useState<WorkoutSet[] | null>(null) // all sets of this exercise
+
+  const exercise = exercisesState.data?.find((e) => e.id === id)
+  const allSets = setsState.data
+  const sets = useMemo(() => allSets?.filter((s) => s.exercise_id === id), [allSets, id]) // all sets of this exercise
   // All your notes (all exercises), for this exercise's notes and the suggestions
-  const [entries, setEntries] = useState<ExerciseEntry[] | null>(null)
+  const entries = entriesState.data
+  const workouts = workoutsState.data
+  const fromWorkout = useMemo(
+    () => workoutContext(workouts?.find((w) => w.id === workoutId) ?? null, itemIndex),
+    [workouts, workoutId, itemIndex],
+  )
+
   const [date, setDate] = useState(initialDate)
-  const [rows, setRows] = useState<RowInput[]>(() => emptyRows(MAX_SETS))
-  const [note, setNote] = useState('') // "Besonderheiten" of the selected day
+  // What you typed for the selected day. null = nothing, so the saved sets and note are shown.
+  const [edits, setEdits] = useState<{ rows: RowInput[]; note: string } | null>(null)
   const [dirty, setDirty] = useState(false) // unsaved changes in the rows or note?
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(
     null,
   )
 
-  // When the screen opens: load the exercise, all its sets, all your notes and,
-  // if opened from a workout, that workout
-  useEffect(() => {
-    supabase
-      .from('exercises')
-      .select('id, user_id, name, category')
-      .eq('id', id)
-      .single()
-      .then(({ data, error }) => {
-        if (error) setLoadError(error.message)
-        else setExercise(data as Exercise)
-      })
-    Promise.all([
-      fetchAllSets(id),
-      fetchEntries(),
-      workoutId ? fetchWorkout(workoutId) : Promise.resolve(null),
-    ])
-      .then(([allSets, allEntries, workout]) => {
-        const context = workoutContext(workout, itemIndex)
-        setFromWorkout(context)
-        setSets(allSets)
-        setEntries(allEntries)
-        setRows(rowsForDate(allSets, initialDate))
-        setNote(noteToShow(allSets, allEntries, id, initialDate, context?.item.note ?? ''))
-      })
-      .catch((e: Error) => setLoadError(e.message))
-  }, [id, initialDate, workoutId, itemIndex])
+  // The saved sets and note ("Besonderheiten") of the selected day
+  const workoutNote = fromWorkout?.item.note ?? ''
+  const saved = useMemo(
+    () => ({
+      rows: rowsForDate(sets ?? [], date),
+      note: noteToShow(sets ?? [], entries ?? [], id, date, workoutNote),
+    }),
+    [sets, entries, id, date, workoutNote],
+  )
+  const rows = edits?.rows ?? saved.rows
+  const note = edits?.note ?? saved.note
 
-  // Reload sets and notes after saving or deleting, and refill that date
-  async function reloadDay(forDate: string) {
-    try {
-      const [allSets, allEntries] = await Promise.all([fetchAllSets(id), fetchEntries()])
-      setSets(allSets)
-      setEntries(allEntries)
-      setRows(rowsForDate(allSets, forDate))
-      setNote(noteToShow(allSets, allEntries, id, forDate, fromWorkout?.item.note ?? ''))
-      setDirty(false)
-    } catch (e) {
-      setMessage({ kind: 'error', text: `Could not reload: ${(e as Error).message}` })
-    }
+  // Show what's saved again (after saving or deleting)
+  function showSaved() {
+    setEdits(null)
+    setDirty(false)
   }
 
   const loggedDates = useMemo(() => new Set((sets ?? []).map((s) => s.date)), [sets])
@@ -197,20 +186,18 @@ function ExerciseScreen() {
     if (newDate === date) return
     if (dirty && !window.confirm('You have unsaved changes. Discard them?')) return
     setDate(newDate)
-    setRows(rowsForDate(sets ?? [], newDate))
-    setNote(noteToShow(sets ?? [], entries ?? [], id, newDate, fromWorkout?.item.note ?? ''))
-    setDirty(false)
+    showSaved()
     setMessage(null)
   }
 
   function updateNote(value: string) {
-    setNote(value)
+    setEdits({ rows, note: value })
     setDirty(true)
     setMessage(null)
   }
 
   function updateRow(index: number, field: 'weight' | 'reps', value: string) {
-    setRows((old) => updateRows(old, index, field, value))
+    setEdits({ rows: updateRows(rows, index, field, value), note })
     setDirty(true)
     setMessage(null)
   }
@@ -220,7 +207,7 @@ function ExerciseScreen() {
   // reps are skipped on save anyway.
   function prefill(index: number): RowInput[] {
     const next = prefillRow(rows, index)
-    if (next !== rows) setRows(next)
+    if (next !== rows) setEdits({ rows: next, note })
     return next
   }
 
@@ -234,7 +221,7 @@ function ExerciseScreen() {
   // Saves the sets and note of the selected day. Returns true if everything was saved.
   async function saveDay(): Promise<boolean> {
     // Check the rows; empty rows and rows with only a prefilled weight are skipped
-    const toSave = []
+    const toSave: WorkoutSet[] = []
     for (let i = 0; i < MAX_SETS; i++) {
       if (isSkipped(rows[i])) continue
       const { weight, reps } = rows[i]
@@ -249,7 +236,7 @@ function ExerciseScreen() {
         setMessage({ kind: 'error', text: `Set ${i + 1}: enter the reps as a whole number.` })
         return false
       }
-      toSave.push({ exercise_id: id, date, set_number: i + 1, weight_kg: weightKg, reps: repCount })
+      toSave.push({ date, set_number: i + 1, weight_kg: weightKg, reps: repCount })
     }
     if (toSave.length === 0) {
       setMessage({
@@ -276,40 +263,25 @@ function ExerciseScreen() {
     setBusy(true)
     setMessage(null)
 
-    // 1. Remove sets that were saved before but are now empty (e.g. set 4 was cleared)
-    const keptNumbers = toSave.map((s) => s.set_number).join(',')
-    const { error: deleteError } = await supabase
-      .from('workout_sets')
-      .delete()
-      .eq('exercise_id', id)
-      .eq('date', date)
-      .not('set_number', 'in', `(${keptNumbers})`)
-
-    // 2. Insert new sets, overwrite existing ones (user_id is filled in by the database)
-    const { error: upsertError } = deleteError
-      ? { error: null }
-      : await supabase
-          .from('workout_sets')
-          .upsert(toSave, { onConflict: 'user_id,exercise_id,date,set_number' })
-
-    const error = deleteError ?? upsertError
+    const error = await saveDaySets(id, date, toSave)
     if (error) {
-      setMessage({ kind: 'error', text: `Could not save: ${error.message}` })
+      setMessage({ kind: 'error', text: `Could not save: ${error}` })
       setBusy(false)
       return false
     }
 
-    // 3. Save the note, and which workout it was logged from (keeps an earlier one)
+    // Save the note, and which workout it was logged from (keeps an earlier one)
     const workoutName = fromWorkout?.workout.name ?? workoutFor(entries ?? [], id, date)
     const noteError = await saveEntry(id, date, note, workoutName)
 
-    await reloadDay(date)
     if (noteError) {
+      // What you typed stays, so you can try again
       setMessage({
         kind: 'error',
         text: `Sets saved, but the note could not be saved: ${noteError}`,
       })
     } else {
+      showSaved()
       setMessage({
         kind: 'ok',
         text:
@@ -344,21 +316,23 @@ function ExerciseScreen() {
     if (!window.confirm(`Delete ${what} for ${formatDay(date)}?`)) return
     setBusy(true)
     setMessage(null)
-    const { error } = await supabase
-      .from('workout_sets')
-      .delete()
-      .eq('exercise_id', id)
-      .eq('date', date)
+    const error = await deleteDaySets(id, date)
     const noteError = error ? null : await saveEntry(id, date, '', '')
     if (error || noteError) {
-      setMessage({ kind: 'error', text: `Could not delete: ${error?.message ?? noteError}` })
+      setMessage({ kind: 'error', text: `Could not delete: ${error ?? noteError}` })
     } else {
-      await reloadDay(date)
+      showSaved()
       setMessage({ kind: 'ok', text: 'Deleted' })
     }
     setBusy(false)
   }
 
+  const loadError = loadingError(
+    exercisesState,
+    setsState,
+    entriesState,
+    ...(workoutId ? [workoutsState] : []),
+  )
   if (loadError) {
     return (
       <main className="page">
@@ -368,7 +342,16 @@ function ExerciseScreen() {
     )
   }
 
-  if (!exercise || !sets || !entries) {
+  if (!exercise && exercisesState.data && !exercisesState.refreshing) {
+    return (
+      <main className="page">
+        <BackLink parent="/" />
+        <p className="error">This exercise doesn't exist (anymore).</p>
+      </main>
+    )
+  }
+
+  if (!exercise || !sets || !entries || (workoutId && !workouts)) {
     return (
       <main className="page">
         <p className="muted">Loading…</p>
@@ -414,10 +397,7 @@ function ExerciseScreen() {
       {editing && (
         <EditExercise
           exercise={exercise}
-          onRenamed={(name) => {
-            setExercise({ ...exercise, name })
-            setEditing(false)
-          }}
+          onRenamed={() => setEditing(false)}
           onDeleted={() => goBack(parent)}
         />
       )}

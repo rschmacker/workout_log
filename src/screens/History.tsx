@@ -1,45 +1,34 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link, useParams } from 'react-router'
 import BackLink from '../components/BackLink'
 import WeightChart, { type ChartPoint } from '../components/WeightChart'
 import { formatDay } from '../dates'
 import PersonalBests from '../components/PersonalBests'
-import { fetchEntries, noteFor, type ExerciseEntry } from '../entries'
+import { noteFor, useMyEntries } from '../entries'
+import { useExercises } from '../exercises'
+import { loadingError } from '../localData'
 import {
   bestByVolume,
   bestByWeight,
-  fetchAllSets,
   shortSet,
+  useMySets,
   type WorkoutSet,
 } from '../sets'
-import { supabase } from '../supabase'
 
 export default function History() {
   const { id = '' } = useParams()
-  const [name, setName] = useState<string | null>(null)
-  const [sets, setSets] = useState<WorkoutSet[] | null>(null)
-  const [entries, setEntries] = useState<ExerciseEntry[]>([]) // notes of this exercise
-  const [error, setError] = useState<string | null>(null)
+  const exercisesState = useExercises()
+  const setsState = useMySets()
+  const entriesState = useMyEntries()
+  const error = loadingError(exercisesState, setsState, entriesState)
+  const name = exercisesState.data?.find((e) => e.id === id)?.name
 
-  useEffect(() => {
-    supabase
-      .from('exercises')
-      .select('name')
-      .eq('id', id)
-      .single()
-      .then(({ data, error }) => {
-        if (error) setError(error.message)
-        else setName(data.name)
-      })
-    Promise.all([fetchAllSets(id), fetchEntries(id)])
-      .then(([allSets, allEntries]) => {
-        setSets(allSets)
-        setEntries(allEntries)
-      })
-      .catch((e: Error) => setError(e.message))
-  }, [id])
+  // The sets of this exercise (sorted by date, then set number)
+  const allSets = setsState.data
+  const sets = useMemo(() => allSets?.filter((s) => s.exercise_id === id), [allSets, id])
+  const entries = entriesState.data ?? [] // your notes (of all exercises)
 
-  // Group the sets by date (sets come sorted by date, then set number)
+  // Group the sets by date
   const days = useMemo(() => {
     const byDate = new Map<string, WorkoutSet[]>()
     for (const s of sets ?? []) {

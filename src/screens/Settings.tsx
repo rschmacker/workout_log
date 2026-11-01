@@ -1,10 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import BackLink from '../components/BackLink'
-import { buildExportRows, toGermanCsv, type ExportRow } from '../csv'
+import { buildExportRows, toGermanCsv } from '../csv'
 import { todayISO } from '../dates'
-import { fetchEntries } from '../entries'
-import { fetchProfiles, saveMyName } from '../profiles'
-import { fetchEverySet } from '../sets'
+import { useMyEntries } from '../entries'
+import { useExercises } from '../exercises'
+import { loadingError } from '../localData'
+import { saveMyName, useProfiles } from '../profiles'
+import { useMySets } from '../sets'
 import { supabase } from '../supabase'
 import { useUserId } from '../useUserId'
 
@@ -35,21 +37,12 @@ async function deliverFile(file: File): Promise<'shared' | 'downloaded' | 'cance
 // Your display name, shown to your friends, e.g. "by <name>" on your workouts
 function NameSetting() {
   const myUserId = useUserId()
-  const [name, setName] = useState('')
-  const [savedName, setSavedName] = useState('')
+  const profiles = useProfiles()
+  const savedName = (myUserId && profiles?.get(myUserId)) || ''
+  const [typed, setTyped] = useState<string | null>(null) // null = nothing typed, show the saved name
+  const name = typed ?? savedName
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
-
-  useEffect(() => {
-    if (!myUserId) return
-    fetchProfiles()
-      .then((profiles) => {
-        const current = profiles.get(myUserId) ?? ''
-        setName(current)
-        setSavedName(current)
-      })
-      .catch((e: Error) => setMessage({ kind: 'error', text: e.message }))
-  }, [myUserId])
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -61,7 +54,7 @@ function NameSetting() {
     if (error) {
       setMessage({ kind: 'error', text: `Could not save: ${error}` })
     } else {
-      setSavedName(name.trim())
+      setTyped(null)
       setMessage({ kind: 'ok', text: 'Saved ✓' })
     }
   }
@@ -79,7 +72,7 @@ function NameSetting() {
             required
             value={name}
             onChange={(e) => {
-              setName(e.target.value)
+              setTyped(e.target.value)
               setMessage(null)
             }}
           />
@@ -97,24 +90,21 @@ function NameSetting() {
 }
 
 export default function Settings({ email }: { email: string | undefined }) {
-  // Loaded when the screen opens, so the export button can hand over the file
+  // Ready when the screen opens, so the export button can hand over the file
   // right away (the iPhone share sheet only opens directly after a tap)
-  const [rows, setRows] = useState<ExportRow[] | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const setsState = useMySets()
+  const exercisesState = useExercises()
+  const entriesState = useMyEntries()
+  const loadError = loadingError(setsState, exercisesState, entriesState)
   const [message, setMessage] = useState<string | null>(null)
 
-  useEffect(() => {
-    Promise.all([
-      fetchEverySet(),
-      supabase.from('exercises').select('id, name, category'),
-      fetchEntries(),
-    ])
-      .then(([sets, exercisesResult, entries]) => {
-        if (exercisesResult.error) throw exercisesResult.error
-        setRows(buildExportRows(sets, exercisesResult.data, entries))
-      })
-      .catch((e: Error) => setLoadError(e.message))
-  }, [])
+  const sets = setsState.data
+  const exercises = exercisesState.data
+  const entries = entriesState.data
+  const rows = useMemo(
+    () => (sets && exercises && entries ? buildExportRows(sets, exercises, entries) : null),
+    [sets, exercises, entries],
+  )
 
   async function exportCsv() {
     if (!rows) return

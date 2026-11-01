@@ -1,3 +1,4 @@
+import { localData, useLocalData } from './localData'
 import { supabase } from './supabase'
 
 export const MAX_SETS = 5
@@ -9,29 +10,13 @@ export type WorkoutSet = {
   reps: number
 }
 
-// Loads all sets of one exercise, oldest first.
-// Supabase returns at most 1000 rows per request, so we fetch in pages.
-export async function fetchAllSets(exerciseId: string): Promise<WorkoutSet[]> {
-  const pageSize = 1000
-  const all: WorkoutSet[] = []
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from('workout_sets')
-      .select('date, set_number, weight_kg, reps')
-      .eq('exercise_id', exerciseId)
-      .order('date')
-      .order('set_number')
-      .range(from, from + pageSize - 1)
-    if (error) throw error
-    all.push(...(data as WorkoutSet[]))
-    if (data.length < pageSize) return all
-  }
-}
+export type LoggedSet = WorkoutSet & { exercise_id: string }
 
-// Loads all sets of all your exercises (for the CSV export), oldest first.
-export async function fetchEverySet(): Promise<(WorkoutSet & { exercise_id: string })[]> {
+// Loads all your sets (all exercises), oldest first.
+// Supabase returns at most 1000 rows per request, so we fetch in pages.
+async function fetchEverySet(): Promise<LoggedSet[]> {
   const pageSize = 1000
-  const all: (WorkoutSet & { exercise_id: string })[] = []
+  const all: LoggedSet[] = []
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
       .from('workout_sets')
@@ -41,9 +26,69 @@ export async function fetchEverySet(): Promise<(WorkoutSet & { exercise_id: stri
       .order('set_number')
       .range(from, from + pageSize - 1)
     if (error) throw error
-    all.push(...(data as (WorkoutSet & { exercise_id: string })[]))
+    all.push(...(data as LoggedSet[]))
     if (data.length < pageSize) return all
   }
+}
+
+// All your sets, with a copy on this phone (see localData.ts)
+export const mySets = localData('sets', fetchEverySet)
+export const useMySets = () => useLocalData(mySets)
+
+// The same order as fetchEverySet: date, exercise, set number
+const bySetOrder = (a: LoggedSet, b: LoggedSet) =>
+  a.date.localeCompare(b.date) ||
+  a.exercise_id.localeCompare(b.exercise_id) ||
+  a.set_number - b.set_number
+
+// After saving: put the sets of one exercise and day into the copy on this phone
+function replaceDayInCopy(exerciseId: string, date: string, daySets: LoggedSet[]) {
+  mySets.change((all) =>
+    [...all.filter((s) => s.exercise_id !== exerciseId || s.date !== date), ...daySets].sort(
+      bySetOrder,
+    ),
+  )
+}
+
+// Saves the sets of one exercise and day. Sets that were saved before but are not in
+// the list anymore (e.g. set 4 was cleared) are removed. Returns an error message or null.
+export async function saveDaySets(
+  exerciseId: string,
+  date: string,
+  daySets: WorkoutSet[],
+): Promise<string | null> {
+  const rows = daySets.map((s) => ({ ...s, exercise_id: exerciseId, date }))
+
+  // 1. Remove sets that were saved before but are now empty
+  const keptNumbers = rows.map((s) => s.set_number).join(',')
+  const { error: deleteError } = await supabase
+    .from('workout_sets')
+    .delete()
+    .eq('exercise_id', exerciseId)
+    .eq('date', date)
+    .not('set_number', 'in', `(${keptNumbers})`)
+  if (deleteError) return deleteError.message
+
+  // 2. Insert new sets, overwrite existing ones (user_id is filled in by the database)
+  const { error } = await supabase
+    .from('workout_sets')
+    .upsert(rows, { onConflict: 'user_id,exercise_id,date,set_number' })
+  if (error) return error.message
+
+  replaceDayInCopy(exerciseId, date, rows)
+  return null
+}
+
+// Deletes all sets of one exercise and day. Returns an error message or null.
+export async function deleteDaySets(exerciseId: string, date: string): Promise<string | null> {
+  const { error } = await supabase
+    .from('workout_sets')
+    .delete()
+    .eq('exercise_id', exerciseId)
+    .eq('date', date)
+  if (error) return error.message
+  replaceDayInCopy(exerciseId, date, [])
+  return null
 }
 
 // Accepts "60", "62.5" and "62,5" (the iPhone keypad shows a comma in German).
@@ -79,7 +124,7 @@ export function formatVolume(n: number): string {
 
 // The best set by some score. On a tie, more reps wins; after that the earliest
 // date (when it was first reached). Expects the sets sorted by date, oldest first
-// (as fetchAllSets returns them).
+// (like the copy of your sets).
 function bestBy<T extends WorkoutSet>(sets: T[], score: (s: T) => number): T | null {
   let best: T | null = null
   for (const s of sets) {

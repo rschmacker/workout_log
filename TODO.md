@@ -105,6 +105,11 @@ Done in steps: **7a** database + import (done 2026-10-21), **7b** builder screen
 - [x] Doing someone else's workout logs the sets to my own data only — verified (test 7)
 - [x] Test with a second account that sharing and privacy work as described, and tell me the result — done as an SQL test acting as me and a friend, every change undone; all 16 checks PASS (2026-10-25)
 
+## 8. Faster screens and logging without reception
+- [x] 8a. Copy of the data on the phone: screens open right away from the copy and are refreshed from Supabase in the background (when older than a minute, and when the app comes back to the front); saving updates the copy at once; the copy is deleted on sign out (`src/localData.ts`)
+- [ ] 8b. Keep the app itself on the phone (service worker), so it opens without internet and starts faster; a new version appears on the second start after a deploy
+- [ ] 8c. Saving without reception: sets, notes and "Delete this day" wait on the phone and upload automatically when back online; stay signed in while offline. Workouts, custom exercises and the name still need internet
+
 ## Decisions
 - Variations (e.g. wide grip) are only saved as Besonderheit in the history, no extra chips or cards on the Home screen
 - Maximum 5 sets everywhere, also in saved workouts

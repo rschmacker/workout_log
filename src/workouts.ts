@@ -1,4 +1,6 @@
+import { useMemo } from 'react'
 import type { Category } from './exercises'
+import { localData, useLocalData, type LocalState } from './localData'
 import { supabase } from './supabase'
 import { cleanLines, draftToRows, type Draft } from './workoutDraft'
 
@@ -125,16 +127,24 @@ function toWorkout(row: WorkoutRow): Workout {
   }
 }
 
-// All workouts of one type, sorted by name
-export async function fetchWorkouts(category: WorkoutCategory): Promise<Workout[]> {
-  const { data, error } = await supabase.from('workouts').select(SELECT).eq('category', category)
+// All workouts as stored, with a copy on this phone (see localData.ts)
+const workoutRows = localData('workouts', async () => {
+  const { data, error } = await supabase.from('workouts').select(SELECT)
   if (error) throw error
-  return (data as unknown as WorkoutRow[])
-    .map(toWorkout)
-    .sort((a, b) => a.name.localeCompare(b.name))
+  return data as unknown as WorkoutRow[]
+})
+
+// All workouts, sorted by name
+export function useWorkouts(): LocalState<Workout[]> {
+  const state = useLocalData(workoutRows)
+  const workouts = useMemo(
+    () => state.data?.map(toWorkout).sort((a, b) => a.name.localeCompare(b.name)),
+    [state.data],
+  )
+  return { ...state, data: workouts }
 }
 
-// One workout, or null if it doesn't exist (anymore)
+// One workout straight from Supabase (not the copy), or null if it doesn't exist (anymore)
 export async function fetchWorkout(id: string): Promise<Workout | null> {
   // Not a valid id (e.g. an old link): don't even ask the database
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null
@@ -162,6 +172,8 @@ export async function saveWorkout(
     p_expected_updated_at: expectedUpdatedAt,
   })
   if (error) throw error
+  // Get the saved version into the copy on this phone before showing it
+  await workoutRows.reload()
   return data as string
 }
 
@@ -170,6 +182,7 @@ export async function deleteWorkout(id: string): Promise<void> {
   const { data, error } = await supabase.from('workouts').delete().eq('id', id).select('id')
   if (error) throw error
   if (data.length === 0) throw new Error('Only the person who created this workout can delete it.')
+  workoutRows.change((rows) => rows.filter((r) => r.id !== id))
 }
 
 export function workoutTypeOf(workout: Workout) {

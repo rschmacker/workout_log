@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import type { Exercise } from '../exercises'
-import { supabase } from '../supabase'
+import { deleteExercise, renameExercise, type Exercise } from '../exercises'
 
 type Props = {
   exercise: Exercise
-  onRenamed: (name: string) => void
+  onRenamed: () => void
   onDeleted: () => void
 }
 
@@ -19,20 +18,18 @@ export default function EditExercise({ exercise, onRenamed, onDeleted }: Props) 
     e.preventDefault()
     setBusy(true)
     setError(null)
-    const { error } = await supabase
-      .from('exercises')
-      .update({ name: name.trim() })
-      .eq('id', exercise.id)
-    setBusy(false)
-    if (error) {
+    try {
+      await renameExercise(exercise.id, name)
+      setBusy(false)
+      onRenamed()
+    } catch (err) {
+      setBusy(false)
       setError(
-        error.code === '23505'
+        (err as { code?: string }).code === '23505'
           ? 'An exercise with this name already exists (exercises are shared, so maybe a friend created it).'
-          : error.message,
+          : (err as Error).message,
       )
-      return
     }
-    onRenamed(name.trim())
   }
 
   async function remove() {
@@ -42,14 +39,13 @@ export default function EditExercise({ exercise, onRenamed, onDeleted }: Props) 
     if (!ok) return
     setBusy(true)
     setError(null)
-    // The database also deletes all sets of this exercise (on delete cascade)
-    const { error } = await supabase.from('exercises').delete().eq('id', exercise.id)
-    if (error) {
-      setError(error.message)
+    try {
+      await deleteExercise(exercise.id)
+      onDeleted()
+    } catch (err) {
+      setError((err as Error).message)
       setBusy(false)
-      return
     }
-    onDeleted()
   }
 
   return (

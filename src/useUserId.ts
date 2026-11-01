@@ -1,11 +1,7 @@
-import { useEffect, useState } from 'react'
-import { supabase } from './supabase'
+import { currentUserId } from './localData'
 
-// The id of the logged-in user (null while it's being read)
+// The id of the logged-in user. The screens are only shown while you're logged in,
+// so it's known right away.
 export function useUserId(): string | null {
-  const [userId, setUserId] = useState<string | null>(null)
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user.id ?? null))
-  }, [])
-  return userId
+  return currentUserId()
 }

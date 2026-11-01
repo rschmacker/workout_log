@@ -9,11 +9,16 @@ if (!url || !key) {
   )
 }
 
+// Where Supabase saves the login on this phone. This is Supabase's own default name,
+// written out so the app can read the saved login at startup (see useSession.ts).
+export const authStorageKey = `sb-${new URL(url).hostname.split('.')[0]}-auth-token`
+
 export const supabase = createClient(url, key, {
   auth: {
     // "pkce" returns from GitHub with "?code=..." instead of "#access_token=...",
     // which would clash with the "#/..." paths of the HashRouter.
     flowType: 'pkce',
+    storageKey: authStorageKey,
   },
 })
 

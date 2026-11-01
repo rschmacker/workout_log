@@ -10,24 +10,22 @@ import PersonalBests from '../components/PersonalBests'
 import { formatDay, todayISO } from '../dates'
 import {
   noteFor,
-  saveEntry,
   useMyEntries,
   workoutFor,
   type ExerciseEntry,
 } from '../entries'
 import { categorySlug, useExercises } from '../exercises'
 import { loadingError } from '../localData'
+import { saveDay, savedText } from '../saveDay'
 import {
   MAX_SETS,
   bestByVolume,
   bestByWeight,
-  deleteDaySets,
   describeSet,
   formatVolume,
   formatWeight,
   parseReps,
   parseWeight,
-  saveDaySets,
   shortSet,
   useMySets,
   volume,
@@ -145,7 +143,6 @@ function ExerciseScreen() {
   const [edits, setEdits] = useState<{ rows: RowInput[]; note: string } | null>(null)
   const [dirty, setDirty] = useState(false) // unsaved changes in the rows or note?
   const [editing, setEditing] = useState(false)
-  const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(
     null,
   )
@@ -218,8 +215,9 @@ function ExerciseScreen() {
     updateRow(index, 'weight', formatWeight(Math.max(0, current + delta)))
   }
 
-  // Saves the sets and note of the selected day. Returns true if everything was saved.
-  async function saveDay(): Promise<boolean> {
+  // Saves the sets and note of the selected day. Returns false if something is wrong
+  // with the input.
+  function saveSelectedDay(): boolean {
     // Check the rows; empty rows and rows with only a prefilled weight are skipped
     const toSave: WorkoutSet[] = []
     for (let i = 0; i < MAX_SETS; i++) {
@@ -260,71 +258,43 @@ function ExerciseScreen() {
       newRecords.push(`best volume ${formatVolume(volume(mostVolumeToday))}`)
     }
 
-    setBusy(true)
-    setMessage(null)
-
-    const error = await saveDaySets(id, date, toSave)
-    if (error) {
-      setMessage({ kind: 'error', text: `Could not save: ${error}` })
-      setBusy(false)
-      return false
-    }
-
-    // Save the note, and which workout it was logged from (keeps an earlier one)
+    // Saved on this phone right away, uploaded in the background (see saveDay.ts).
+    // Also saves which workout it was logged from (keeps an earlier one).
     const workoutName = fromWorkout?.workout.name ?? workoutFor(entries ?? [], id, date)
-    const noteError = await saveEntry(id, date, note, workoutName)
-
-    if (noteError) {
-      // What you typed stays, so you can try again
-      setMessage({
-        kind: 'error',
-        text: `Sets saved, but the note could not be saved: ${noteError}`,
-      })
-    } else {
-      showSaved()
-      setMessage({
-        kind: 'ok',
-        text:
-          newRecords.length > 0
-            ? `Saved ✓ New personal best: ${newRecords.join(' and ')} 🎉`
-            : 'Saved ✓',
-      })
-    }
-    setBusy(false)
-    return !noteError
+    saveDay(id, date, toSave, note, workoutName)
+    showSaved()
+    setMessage({
+      kind: 'ok',
+      text:
+        savedText('Saved ✓') +
+        (newRecords.length > 0 ? ` New personal best: ${newRecords.join(' and ')} 🎉` : ''),
+    })
+    return true
   }
 
   function save(e: FormEvent) {
     e.preventDefault()
-    saveDay()
+    saveSelectedDay()
   }
 
   // Superset: save this exercise (if something was entered), then open the partner
   // exercise on the same date. It replaces this screen, so Back goes to the workout.
-  async function goToPartner(partner: MainExercise) {
+  function goToPartner(partner: MainExercise) {
     if (!fromWorkout) return
-    if (dirty && rows.some((r) => !isSkipped(r)) && !(await saveDay())) return
+    if (dirty && rows.some((r) => !isSkipped(r)) && !saveSelectedDay()) return
     navigate(
       `/exercise/${partner.exerciseId}?workout=${fromWorkout.workout.id}&item=${partner.index}&date=${date}`,
       { replace: true },
     )
   }
 
-  async function deleteDay() {
+  function deleteDay() {
     const hasNote = noteFor(entries ?? [], id, date) !== ''
     const what = hasNote ? 'all sets and the note' : 'all sets'
     if (!window.confirm(`Delete ${what} for ${formatDay(date)}?`)) return
-    setBusy(true)
-    setMessage(null)
-    const error = await deleteDaySets(id, date)
-    const noteError = error ? null : await saveEntry(id, date, '', '')
-    if (error || noteError) {
-      setMessage({ kind: 'error', text: `Could not delete: ${error ?? noteError}` })
-    } else {
-      showSaved()
-      setMessage({ kind: 'ok', text: 'Deleted' })
-    }
-    setBusy(false)
+    saveDay(id, date, [], '', '')
+    showSaved()
+    setMessage({ kind: 'ok', text: savedText('Deleted') })
   }
 
   const loadError = loadingError(
@@ -489,7 +459,7 @@ function ExerciseScreen() {
         <NoteField value={note} onChange={updateNote} entries={entries} exerciseId={id} />
 
         <div className="stack">
-          <button className="button" disabled={busy}>
+          <button className="button">
             {hasSavedSets ? 'Save changes' : 'Save'}
           </button>
           {/* Superset: jump to the other exercise(s), saving this one first */}
@@ -498,7 +468,6 @@ function ExerciseScreen() {
               key={partner.index}
               type="button"
               className="button secondary"
-              disabled={busy}
               onClick={() => goToPartner(partner)}
             >
               {dirty ? 'Save & go to' : 'Go to'} {partner.exercise} ›
@@ -511,7 +480,6 @@ function ExerciseScreen() {
             <button
               type="button"
               className="link-button danger-text"
-              disabled={busy}
               onClick={deleteDay}
             >
               Delete this day

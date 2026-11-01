@@ -10,6 +10,7 @@ import {
   categorySlug,
   type Category,
 } from '../exercises'
+import { errorText } from '../supabase'
 
 export default function AddExercise() {
   const navigate = useNavigate()
@@ -39,7 +40,7 @@ export default function AddExercise() {
       setError(
         (err as { code?: string }).code === '23505'
           ? 'An exercise with this name already exists (exercises are shared, so maybe a friend created it).'
-          : (err as Error).message,
+          : errorText((err as Error).message),
       )
       setBusy(false)
       return

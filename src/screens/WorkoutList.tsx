@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import BackLink from '../components/BackLink'
 import { nameOf, useProfiles } from '../profiles'
+import { errorText } from '../supabase'
 import { useUserId } from '../useUserId'
 import { WORKOUT_TYPES, deleteWorkout, useWorkouts, type Workout } from '../workouts'
 
@@ -61,7 +62,7 @@ export default function WorkoutList() {
       await deleteWorkout(workout.id)
       setMenuFor(null)
     } catch (e) {
-      setError((e as Error).message)
+      setError(errorText((e as Error).message))
     }
   }
 

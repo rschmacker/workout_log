@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { Link, Route, Routes } from 'react-router'
+import OutboxBanner from './components/OutboxBanner'
 import { refreshAllIfOld } from './localData'
 import Login from './Login'
+import { uploadPending } from './saveDay'
 import AddExercise from './screens/AddExercise'
 import ExerciseList from './screens/ExerciseList'
 import ExerciseScreen from './screens/ExerciseScreen'
@@ -28,10 +30,12 @@ export default function App() {
   const session = useSession()
   const userId = session?.user.id
 
-  // Right after the app starts: update all copies on this phone in the background,
-  // so the screens are up to date when you open them
+  // Right after the app starts: upload what was saved without reception, and update
+  // all copies on this phone in the background, so the screens are up to date
   useEffect(() => {
-    if (userId) refreshAllIfOld()
+    if (!userId) return
+    uploadPending()
+    refreshAllIfOld()
   }, [userId])
 
   if (session === undefined) {
@@ -45,19 +49,22 @@ export default function App() {
   if (session === null) return <Login />
 
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/exercises/:category" element={<ExerciseList />} />
-      <Route path="/workouts/:type" element={<WorkoutList />} />
-      <Route path="/workouts/:type/new" element={<WorkoutBuilder mode="create" />} />
-      <Route path="/workout/:id" element={<WorkoutScreen />} />
-      <Route path="/workout/:id/edit" element={<WorkoutBuilder mode="edit" />} />
-      <Route path="/workout/:id/duplicate" element={<WorkoutBuilder mode="duplicate" />} />
-      <Route path="/add-exercise" element={<AddExercise />} />
-      <Route path="/exercise/:id" element={<ExerciseScreen />} />
-      <Route path="/exercise/:id/history" element={<History />} />
-      <Route path="/settings" element={<Settings email={session.user.email} />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/exercises/:category" element={<ExerciseList />} />
+        <Route path="/workouts/:type" element={<WorkoutList />} />
+        <Route path="/workouts/:type/new" element={<WorkoutBuilder mode="create" />} />
+        <Route path="/workout/:id" element={<WorkoutScreen />} />
+        <Route path="/workout/:id/edit" element={<WorkoutBuilder mode="edit" />} />
+        <Route path="/workout/:id/duplicate" element={<WorkoutBuilder mode="duplicate" />} />
+        <Route path="/add-exercise" element={<AddExercise />} />
+        <Route path="/exercise/:id" element={<ExerciseScreen />} />
+        <Route path="/exercise/:id/history" element={<History />} />
+        <Route path="/settings" element={<Settings email={session.user.email} />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <OutboxBanner />
+    </>
   )
 }

@@ -7,6 +7,7 @@ import {
   type Category,
   type Exercise,
 } from '../exercises'
+import { errorText } from '../supabase'
 import BodyMap from './BodyMap'
 
 type Props = {
@@ -46,7 +47,7 @@ export default function ExercisePicker({ alreadyUsed, onPick, onCancel }: Props)
       setError(
         (err as { code?: string }).code === '23505'
           ? 'An exercise with this name already exists (maybe in another body part).'
-          : (err as Error).message,
+          : errorText((err as Error).message),
       )
     }
   }

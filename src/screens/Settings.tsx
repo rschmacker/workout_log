@@ -5,9 +5,10 @@ import { todayISO } from '../dates'
 import { useMyEntries } from '../entries'
 import { useExercises } from '../exercises'
 import { loadingError } from '../localData'
+import { clearOutbox, useOutbox } from '../outbox'
 import { saveMyName, useProfiles } from '../profiles'
 import { useMySets } from '../sets'
-import { supabase } from '../supabase'
+import { errorText, supabase } from '../supabase'
 import { useUserId } from '../useUserId'
 
 // Hands the file to the user: on a phone via the share sheet ("Save to Files",
@@ -52,7 +53,7 @@ function NameSetting() {
     const error = await saveMyName(myUserId, name)
     setBusy(false)
     if (error) {
-      setMessage({ kind: 'error', text: `Could not save: ${error}` })
+      setMessage({ kind: 'error', text: `Could not save: ${errorText(error)}` })
     } else {
       setTyped(null)
       setMessage({ kind: 'ok', text: 'Saved ✓' })
@@ -97,6 +98,9 @@ export default function Settings({ email }: { email: string | undefined }) {
   const entriesState = useMyEntries()
   const loadError = loadingError(setsState, exercisesState, entriesState)
   const [message, setMessage] = useState<string | null>(null)
+  const outbox = useOutbox()
+  const myUserId = useUserId()
+  const [signOutError, setSignOutError] = useState<string | null>(null)
 
   const sets = setsState.data
   const exercises = exercisesState.data
@@ -115,6 +119,23 @@ export default function Settings({ email }: { email: string | undefined }) {
     const result = await deliverFile(file)
     if (result === 'shared') setMessage(`Exported ${rows.length} sets.`)
     if (result === 'downloaded') setMessage(`Downloaded ${file.name} (${rows.length} sets).`)
+  }
+
+  // Signing out deletes everything on this phone, also what isn't uploaded yet
+  async function signOut() {
+    const waiting = outbox.changes.length
+    if (
+      waiting > 0 &&
+      !window.confirm(
+        `${waiting} saved ${waiting === 1 ? 'entry is' : 'entries are'} not uploaded yet and will be lost. Sign out anyway?`,
+      )
+    ) {
+      return
+    }
+    setSignOutError(null)
+    const { error } = await supabase.auth.signOut()
+    if (error) setSignOutError(errorText(error.message))
+    else if (myUserId) clearOutbox(myUserId)
   }
 
   return (
@@ -144,9 +165,12 @@ export default function Settings({ email }: { email: string | undefined }) {
         <p>
           Signed in as <strong>{email}</strong>
         </p>
-        <button className="button secondary" onClick={() => supabase.auth.signOut()}>
-          Sign out
-        </button>
+        <div className="stack">
+          <button className="button secondary" onClick={signOut}>
+            Sign out
+          </button>
+          {signOutError && <p className="error">{signOutError}</p>}
+        </div>
       </section>
     </main>
   )

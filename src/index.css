@@ -1129,3 +1129,16 @@ fieldset.field legend {
   font-size: 0.6875rem;
   font-weight: 700;
 }
+
+/* "Not uploaded yet" note: stays at the bottom of the screen while scrolling */
+.outbox-banner {
+  position: sticky;
+  bottom: 0;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 0.625rem 1.25rem calc(0.625rem + env(safe-area-inset-bottom));
+  border-top: 3px solid var(--accent);
+  background: var(--surface);
+  box-shadow: var(--overlay-shadow);
+  font-size: 0.875rem;
+}

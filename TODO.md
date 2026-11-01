@@ -108,7 +108,7 @@ Done in steps: **7a** database + import (done 2026-10-21), **7b** builder screen
 ## 8. Faster screens and logging without reception
 - [x] 8a. Copy of the data on the phone: screens open right away from the copy and are refreshed from Supabase in the background (when older than a minute, and when the app comes back to the front); saving updates the copy at once; the copy is deleted on sign out (`src/localData.ts`)
 - [x] 8b. Keep the app itself on the phone (service worker), so it opens without internet and starts faster; a new version appears on the second start after a deploy (`src/serviceWorker.js`, written to `dist/sw.js` by `vite.config.ts`). Also: the app starts with the login saved on the phone instead of waiting for Supabase, and stays signed in while offline (`src/useSession.ts`)
-- [ ] 8c. Saving without reception: sets, notes and "Delete this day" wait on the phone and upload automatically when back online. Workouts, custom exercises and the name still need internet
+- [x] 8c. Saving without reception: sets, notes and "Delete this day" are saved on the phone at once and uploaded in the background; without reception they wait in an outbox (`src/outbox.ts`, `src/saveDay.ts`) and upload automatically (app back in front, connection back, every 30 s, next save). A note at the bottom of the screen says what isn't uploaded yet; signing out warns first. Workouts, custom exercises and the name still need internet (clear "No connection" message)
 
 ## Decisions
 - Variations (e.g. wide grip) are only saved as Besonderheit in the history, no extra chips or cards on the Home screen

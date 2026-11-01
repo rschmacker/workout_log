@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { deleteExercise, renameExercise, type Exercise } from '../exercises'
+import { errorText } from '../supabase'
 
 type Props = {
   exercise: Exercise
@@ -27,7 +28,7 @@ export default function EditExercise({ exercise, onRenamed, onDeleted }: Props) 
       setError(
         (err as { code?: string }).code === '23505'
           ? 'An exercise with this name already exists (exercises are shared, so maybe a friend created it).'
-          : (err as Error).message,
+          : errorText((err as Error).message),
       )
     }
   }
@@ -43,7 +44,7 @@ export default function EditExercise({ exercise, onRenamed, onDeleted }: Props) 
       await deleteExercise(exercise.id)
       onDeleted()
     } catch (err) {
-      setError((err as Error).message)
+      setError(errorText((err as Error).message))
       setBusy(false)
     }
   }

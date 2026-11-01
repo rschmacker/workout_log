@@ -6,6 +6,7 @@ import NoteField from '../components/NoteField'
 import { useMyEntries, type ExerciseEntry } from '../entries'
 import { loadingError } from '../localData'
 import { formatDateTime, nameOf, useProfiles } from '../profiles'
+import { errorText } from '../supabase'
 import { useGoBack } from '../useGoBack'
 import { useUserId } from '../useUserId'
 import {
@@ -307,7 +308,7 @@ export default function WorkoutBuilder({ mode }: { mode: Mode }) {
     } catch (err) {
       const message = (err as Error).message
       if (message.startsWith('WORKOUT_CHANGED')) setConflict(await whoChangedIt())
-      else setError(message)
+      else setError(errorText(message))
       setBusy(false)
     }
   }

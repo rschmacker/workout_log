@@ -1,4 +1,5 @@
 import { localData, useLocalData } from './localData'
+import { pendingChanges } from './outbox'
 import { supabase } from './supabase'
 
 export const MAX_SETS = 5
@@ -31,64 +32,32 @@ async function fetchEverySet(): Promise<LoggedSet[]> {
   }
 }
 
-// All your sets, with a copy on this phone (see localData.ts)
-export const mySets = localData('sets', fetchEverySet)
-export const useMySets = () => useLocalData(mySets)
-
 // The same order as fetchEverySet: date, exercise, set number
 const bySetOrder = (a: LoggedSet, b: LoggedSet) =>
   a.date.localeCompare(b.date) ||
   a.exercise_id.localeCompare(b.exercise_id) ||
   a.set_number - b.set_number
 
-// After saving: put the sets of one exercise and day into the copy on this phone
-function replaceDayInCopy(exerciseId: string, date: string, daySets: LoggedSet[]) {
-  mySets.change((all) =>
-    [...all.filter((s) => s.exercise_id !== exerciseId || s.date !== date), ...daySets].sort(
-      bySetOrder,
-    ),
-  )
+// The list of sets with the sets of one exercise and day replaced (none = day deleted)
+function replaceDay(all: LoggedSet[], exerciseId: string, date: string, daySets: WorkoutSet[]) {
+  const others = all.filter((s) => s.exercise_id !== exerciseId || s.date !== date)
+  const added = daySets.map((s) => ({ ...s, exercise_id: exerciseId, date }))
+  return [...others, ...added].sort(bySetOrder)
 }
 
-// Saves the sets of one exercise and day. Sets that were saved before but are not in
-// the list anymore (e.g. set 4 was cleared) are removed. Returns an error message or null.
-export async function saveDaySets(
-  exerciseId: string,
-  date: string,
-  daySets: WorkoutSet[],
-): Promise<string | null> {
-  const rows = daySets.map((s) => ({ ...s, exercise_id: exerciseId, date }))
+// All your sets, with a copy on this phone (see localData.ts). Days that are saved on
+// this phone but not uploaded yet (outbox.ts) are shown as saved.
+export const mySets = localData('sets', async () =>
+  pendingChanges().reduce(
+    (all, c) => replaceDay(all, c.exerciseId, c.date, c.sets),
+    await fetchEverySet(),
+  ),
+)
+export const useMySets = () => useLocalData(mySets)
 
-  // 1. Remove sets that were saved before but are now empty
-  const keptNumbers = rows.map((s) => s.set_number).join(',')
-  const { error: deleteError } = await supabase
-    .from('workout_sets')
-    .delete()
-    .eq('exercise_id', exerciseId)
-    .eq('date', date)
-    .not('set_number', 'in', `(${keptNumbers})`)
-  if (deleteError) return deleteError.message
-
-  // 2. Insert new sets, overwrite existing ones (user_id is filled in by the database)
-  const { error } = await supabase
-    .from('workout_sets')
-    .upsert(rows, { onConflict: 'user_id,exercise_id,date,set_number' })
-  if (error) return error.message
-
-  replaceDayInCopy(exerciseId, date, rows)
-  return null
-}
-
-// Deletes all sets of one exercise and day. Returns an error message or null.
-export async function deleteDaySets(exerciseId: string, date: string): Promise<string | null> {
-  const { error } = await supabase
-    .from('workout_sets')
-    .delete()
-    .eq('exercise_id', exerciseId)
-    .eq('date', date)
-  if (error) return error.message
-  replaceDayInCopy(exerciseId, date, [])
-  return null
+// When saving: put the sets of one exercise and day into the copy on this phone
+export function replaceDayInCopy(exerciseId: string, date: string, daySets: WorkoutSet[]) {
+  mySets.change((all) => replaceDay(all, exerciseId, date, daySets))
 }
 
 // Accepts "60", "62.5" and "62,5" (the iPhone keypad shows a comma in German).

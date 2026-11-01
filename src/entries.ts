@@ -1,4 +1,5 @@
 import { localData, useLocalData } from './localData'
+import { pendingChanges } from './outbox'
 import { supabase } from './supabase'
 
 // One row of exercise_entries: per exercise and day, the "Besonderheiten" note and
@@ -28,9 +29,37 @@ async function fetchEntries(): Promise<ExerciseEntry[]> {
   }
 }
 
-// All your entries, with a copy on this phone (see localData.ts)
-export const myEntries = localData('entries', fetchEntries)
+// The list of entries with the note and workout of one exercise and day replaced
+// (both empty = no entry), in the same order as fetchEntries
+function setEntry(
+  all: ExerciseEntry[],
+  exerciseId: string,
+  date: string,
+  note: string,
+  workout: string,
+): ExerciseEntry[] {
+  const others = all.filter((e) => e.exercise_id !== exerciseId || e.date !== date)
+  if (!note && !workout) return others
+  const entry = { exercise_id: exerciseId, date, note: note || null, workout: workout || null }
+  return [...others, entry].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.exercise_id.localeCompare(b.exercise_id),
+  )
+}
+
+// All your entries, with a copy on this phone (see localData.ts). Days that are saved
+// on this phone but not uploaded yet (outbox.ts) are shown as saved.
+export const myEntries = localData('entries', async () =>
+  pendingChanges().reduce(
+    (all, c) => setEntry(all, c.exerciseId, c.date, c.note, c.workout),
+    await fetchEntries(),
+  ),
+)
 export const useMyEntries = () => useLocalData(myEntries)
+
+// When saving: put the note and workout of one exercise and day into the copy on this phone
+export function setEntryInCopy(exerciseId: string, date: string, note: string, workout: string) {
+  myEntries.change((all) => setEntry(all, exerciseId, date, note, workout))
+}
 
 function entryFor(entries: ExerciseEntry[], exerciseId: string, date: string) {
   return entries.find((e) => e.exercise_id === exerciseId && e.date === date)
@@ -44,40 +73,4 @@ export function noteFor(entries: ExerciseEntry[], exerciseId: string, date: stri
 // The saved workout one exercise was logged from on one day ('' if none)
 export function workoutFor(entries: ExerciseEntry[], exerciseId: string, date: string): string {
   return entryFor(entries, exerciseId, date)?.workout ?? ''
-}
-
-// Saves the note and workout of one exercise and day; if both are empty, the entry
-// is removed. user_id is filled in by the database. Returns an error message or null.
-export async function saveEntry(
-  exerciseId: string,
-  date: string,
-  note: string,
-  workout: string,
-): Promise<string | null> {
-  const text = note.trim()
-  const keep = text !== '' || workout !== ''
-  const { error } = keep
-    ? await supabase
-        .from('exercise_entries')
-        .upsert(
-          { exercise_id: exerciseId, date, note: text || null, workout: workout || null },
-          { onConflict: 'user_id,exercise_id,date' },
-        )
-    : await supabase
-        .from('exercise_entries')
-        .delete()
-        .eq('exercise_id', exerciseId)
-        .eq('date', date)
-  if (error) return error.message
-
-  // Update the copy on this phone (same order as fetchEntries)
-  myEntries.change((all) => {
-    const others = all.filter((e) => e.exercise_id !== exerciseId || e.date !== date)
-    if (!keep) return others
-    const entry = { exercise_id: exerciseId, date, note: text || null, workout: workout || null }
-    return [...others, entry].sort(
-      (a, b) => a.date.localeCompare(b.date) || a.exercise_id.localeCompare(b.exercise_id),
-    )
-  })
-  return null
 }

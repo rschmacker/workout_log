@@ -32,6 +32,14 @@ export const loginErrorFromUrl = new URLSearchParams(window.location.search).get
   'error_description',
 )
 
+// Error text for things that need internet (workouts, custom exercises, your name …):
+// a failed connection gets a clearer message than the browser's "Load failed"
+export function errorText(message: string): string {
+  return !navigator.onLine || /load failed|failed to fetch|networkerror|abort|timeout/i.test(message)
+    ? 'No connection – this needs internet. Please try again when you have reception.'
+    : message
+}
+
 // Remove "?code=..." / "?error=..." from the address bar after the login was handled.
 export function cleanLoginParamsFromUrl() {
   if (window.location.search) {

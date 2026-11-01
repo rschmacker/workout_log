@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { formatDay, parseISODate } from '../dates'
-import { describeSet, formatWeight } from '../sets'
+import { formatWeight } from '../sets'
 
 export type ChartPoint = {
   date: string // "YYYY-MM-DD"
-  weight: number // top set weight in kg
-  reps: number // reps of that top set
+  value: number // what is drawn, e.g. the kg of the heaviest set
+  label: string // shown when you tap the point, e.g. "100 kg × 8"
+}
+
+type Props = {
+  points: ChartPoint[]
+  formatValue: (value: number) => string // label of the latest point, e.g. "100 kg"
+  description: string // for screen readers, e.g. "Heaviest set per day"
+  wholeNumbers?: boolean // e.g. reps: no axis labels like 7.5
 }
 
 const HEIGHT = 236
@@ -13,11 +20,12 @@ const MARGIN = { top: 24, right: 20, bottom: 44, left: 44 } // bottom: room for 
 const DAY_MS = 24 * 60 * 60 * 1000
 
 // Round tick steps: 1, 2, 2.5, 5, 10, 20, 25, 50 … so the y-axis shows clean numbers
-function niceStep(range: number, targetTicks: number): number {
+// (without 2.5, 25 … and at least 1 for whole numbers)
+function niceStep(range: number, targetTicks: number, wholeNumbers: boolean): number {
   const rough = range / targetTicks
   const power = 10 ** Math.floor(Math.log10(rough))
-  for (const m of [1, 2, 2.5, 5, 10]) {
-    if (m * power >= rough) return m * power
+  for (const m of wholeNumbers ? [1, 2, 5, 10] : [1, 2, 2.5, 5, 10]) {
+    if (m * power >= rough) return wholeNumbers ? Math.max(1, Math.round(m * power)) : m * power
   }
   return 10 * power
 }
@@ -32,9 +40,14 @@ function axisDate(date: string, longRange: boolean): [string, string] {
   return [top, String(d.getFullYear())]
 }
 
-// Line chart of the top set weight per day. Hand-made SVG, so no chart library is needed.
-// Tap or drag across the chart to see the value of the nearest day.
-export default function WeightChart({ points }: { points: ChartPoint[] }) {
+// Line chart with one value per day (e.g. the heaviest set). Hand-made SVG, so no chart
+// library is needed. Tap or drag across the chart to see the value of the nearest day.
+export default function ProgressChart({
+  points,
+  formatValue,
+  description,
+  wholeNumbers = false,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
   const [active, setActive] = useState<number | null>(null) // index of highlighted point
@@ -51,23 +64,25 @@ export default function WeightChart({ points }: { points: ChartPoint[] }) {
   const plotWidth = Math.max(0, width - MARGIN.left - MARGIN.right)
   const plotHeight = HEIGHT - MARGIN.top - MARGIN.bottom
 
-  // x: days since the first point; y: kg
+  // x: days since the first point; y: the values (kg, kg × reps or reps)
   const times = points.map((p) => parseISODate(p.date).getTime())
   const firstTime = times[0]
   const spanDays = (times[times.length - 1] - firstTime) / DAY_MS
   const xOf = (i: number) =>
     MARGIN.left + (spanDays === 0 ? plotWidth / 2 : ((times[i] - firstTime) / DAY_MS / spanDays) * plotWidth)
 
-  const weights = points.map((p) => p.weight)
-  const step = niceStep(Math.max(Math.max(...weights) - Math.min(...weights), 10), 4)
-  let yMin = Math.floor(Math.min(...weights) / step) * step
-  let yMax = Math.ceil(Math.max(...weights) / step) * step
-  // All points at the same weight: add a step above and below so the line sits in the middle
+  const values = points.map((p) => p.value)
+  // At least a range of 10 kg (or 4 reps), so small changes don't look huge
+  const minRange = wholeNumbers ? 4 : 10
+  const step = niceStep(Math.max(Math.max(...values) - Math.min(...values), minRange), 4, wholeNumbers)
+  let yMin = Math.floor(Math.min(...values) / step) * step
+  let yMax = Math.ceil(Math.max(...values) / step) * step
+  // All points at the same value: add a step above and below so the line sits in the middle
   if (yMax === yMin) {
     yMin = Math.max(0, yMin - step)
     yMax += step
   }
-  const yOf = (w: number) => MARGIN.top + (1 - (w - yMin) / (yMax - yMin)) * plotHeight
+  const yOf = (v: number) => MARGIN.top + (1 - (v - yMin) / (yMax - yMin)) * plotHeight
   const yTicks: number[] = []
   for (let v = yMin; v <= yMax + 1e-9; v += step) yTicks.push(Math.round(v * 100) / 100)
 
@@ -81,7 +96,7 @@ export default function WeightChart({ points }: { points: ChartPoint[] }) {
   const xLabelIndexes =
     points.length === 1 ? [0] : middleFits ? [0, middle, points.length - 1] : [0, points.length - 1]
 
-  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(i)},${yOf(p.weight)}`).join(' ')
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(i)},${yOf(p.value)}`).join(' ')
   const showAllDots = points.length <= 30
   const last = points.length - 1
 
@@ -118,7 +133,7 @@ export default function WeightChart({ points }: { points: ChartPoint[] }) {
           width={width}
           height={HEIGHT}
           role="img"
-          aria-label="Top set weight over time"
+          aria-label={description}
           tabIndex={0}
           onPointerDown={onPointer}
           onPointerMove={onPointer}
@@ -126,7 +141,7 @@ export default function WeightChart({ points }: { points: ChartPoint[] }) {
           onKeyDown={onKeyDown}
           onBlur={() => setActive(null)}
         >
-          {/* Horizontal gridlines with kg labels */}
+          {/* Horizontal gridlines with value labels */}
           {yTicks.map((v) => (
             <g key={v}>
               <line
@@ -181,7 +196,7 @@ export default function WeightChart({ points }: { points: ChartPoint[] }) {
                 key={p.date}
                 className="chart-dot"
                 cx={xOf(i)}
-                cy={yOf(p.weight)}
+                cy={yOf(p.value)}
                 r={i === active ? 6 : 4}
               />
             ) : null,
@@ -192,10 +207,10 @@ export default function WeightChart({ points }: { points: ChartPoint[] }) {
             <text
               className="chart-label"
               x={xOf(last)}
-              y={yOf(points[last].weight) - 12}
+              y={yOf(points[last].value) - 12}
               textAnchor={points.length === 1 ? 'middle' : 'end'}
             >
-              {points[last].weight === 0 ? 'BW' : `${formatWeight(points[last].weight)} kg`}
+              {formatValue(points[last].value)}
             </text>
           )}
         </svg>
@@ -206,10 +221,11 @@ export default function WeightChart({ points }: { points: ChartPoint[] }) {
         <div
           className="chart-tooltip"
           style={{
-            left: Math.min(Math.max(xOf(active!), 70), width - 70),
+            // Keep the tooltip inside the chart (it's up to ~180 px wide)
+            left: Math.min(Math.max(xOf(active!), 90), width - 90),
           }}
         >
-          <strong>{describeSet({ weight_kg: activePoint.weight, reps: activePoint.reps })}</strong>
+          <strong>{activePoint.label}</strong>
           <span>{formatDay(activePoint.date)}</span>
         </div>
       )}

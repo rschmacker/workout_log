@@ -376,6 +376,12 @@ input:focus {
   margin-top: 0.75rem;
 }
 
+/* History: Heaviest / Best volume above the chart */
+.choice-grid.chart-choice {
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: 0.75rem;
+}
+
 /* "by Max · last edited by you, 21 Oct 2026, 09:20" */
 .workout-subtitle.small {
   font-size: 0.875rem;
